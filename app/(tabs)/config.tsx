@@ -23,7 +23,7 @@ function confirmAction(title: string, message: string, onConfirm: () => void) {
 
 import {
   Prenda, Tejido, TipoTejido, getPrendas, savePrendas, getTejidos, saveTejidos,
-  getCostoMinuto, saveCostoMinuto, generateId,
+  getCostoMinuto, saveCostoMinuto, getMargenDefault, saveMargenDefault, generateId,
 } from '@/lib/storage';
 import { COLORS, RADIUS } from '@/lib/theme';
 import { Button, Card, Chip, SectionHeader, PageHeader } from '@/components/ui-kit';
@@ -31,6 +31,7 @@ import { showToast } from '@/components/toast';
 
 export default function ConfigScreen() {
   const [costoMinuto, setCostoMinuto] = useState('');
+  const [margenDefault, setMargenDefault] = useState('');
   const [prendas, setPrendas] = useState<Prenda[]>([]);
   const [tejidos, setTejidos] = useState<Tejido[]>([]);
 
@@ -49,12 +50,14 @@ export default function ConfigScreen() {
   const [nt, setNt] = useState({ nombre: '', tipo: 'punto' as TipoTejido, precio: '' });
 
   const timeout = useRef<ReturnType<typeof setTimeout>>();
+  const margenTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        const [cm, p, t] = await Promise.all([getCostoMinuto(), getPrendas(), getTejidos()]);
+        const [cm, p, t, md] = await Promise.all([getCostoMinuto(), getPrendas(), getTejidos(), getMargenDefault()]);
         setCostoMinuto(cm.toString());
+        setMargenDefault(md.toString());
         setPrendas(p);
         setTejidos(t);
       })();
@@ -67,6 +70,15 @@ export default function ConfigScreen() {
     timeout.current = setTimeout(async () => {
       const n = parseFloat(val);
       if (n && n > 0) { await saveCostoMinuto(n); showToast(`Costo minuto: $${n}/min`); }
+    }, 800);
+  };
+
+  const handleMargenChange = (val: string) => {
+    setMargenDefault(val);
+    if (margenTimeout.current) clearTimeout(margenTimeout.current);
+    margenTimeout.current = setTimeout(async () => {
+      const n = parseFloat(val);
+      if (n && n > 0 && n < 100) { await saveMargenDefault(n); showToast(`Margen default: ${n}%`); }
     }, 800);
   };
 
@@ -158,6 +170,25 @@ export default function ConfigScreen() {
             placeholderTextColor={COLORS.textMuted}
           />
           <Text style={styles.costoSuffix}>/min</Text>
+        </View>
+      </Card>
+
+      {/* Margen default */}
+      <SectionHeader icon="trending-up" title="Margen default" subtitle="Se usa automaticamente al cotizar" />
+      <Card>
+        <View style={styles.costoRow}>
+          <View style={styles.costoIconWrap}>
+            <MaterialIcons name="percent" size={22} color={COLORS.primary} />
+          </View>
+          <TextInput
+            style={styles.costoInput}
+            keyboardType="decimal-pad"
+            value={margenDefault}
+            onChangeText={handleMargenChange}
+            placeholder="40"
+            placeholderTextColor={COLORS.textMuted}
+          />
+          <Text style={styles.costoSuffix}>%</Text>
         </View>
       </Card>
 

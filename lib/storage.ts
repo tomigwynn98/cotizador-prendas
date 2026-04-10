@@ -84,6 +84,8 @@ const KEYS = {
   COSTO_MINUTO: 'costoMinuto',
   COTIZACIONES: 'cotizaciones',
   COTIZACION_ACTUAL: 'cotizacionActual',
+  CONSUMOS: 'consumos',       // memo: prendaId_tejidoId → consumo
+  MARGEN_DEFAULT: 'margenDefault',
 };
 
 // --- Defaults ---
@@ -161,6 +163,33 @@ export async function deleteCotizacion(id: string): Promise<void> {
   const lista = await getCotizaciones();
   const updated = lista.filter((c) => c.id !== id);
   await storage.setItem(KEYS.COTIZACIONES, JSON.stringify(updated));
+}
+
+// --- Consumos memorizados (prenda+tejido → consumo) ---
+
+export async function getConsumos(): Promise<Record<string, number>> {
+  return getOrDefault(KEYS.CONSUMOS, {});
+}
+
+export async function saveConsumo(prendaId: string, tejidoId: string, consumo: number): Promise<void> {
+  const consumos = await getConsumos();
+  consumos[`${prendaId}_${tejidoId}`] = consumo;
+  await storage.setItem(KEYS.CONSUMOS, JSON.stringify(consumos));
+}
+
+export async function getConsumo(prendaId: string, tejidoId: string): Promise<number | null> {
+  const consumos = await getConsumos();
+  return consumos[`${prendaId}_${tejidoId}`] ?? null;
+}
+
+// --- Margen default ---
+
+export async function getMargenDefault(): Promise<number> {
+  return getOrDefault(KEYS.MARGEN_DEFAULT, 40);
+}
+
+export async function saveMargenDefault(margen: number): Promise<void> {
+  await storage.setItem(KEYS.MARGEN_DEFAULT, JSON.stringify(margen));
 }
 
 // Cotización actual (para pasar entre Cotizar → Resultado sin URL params)

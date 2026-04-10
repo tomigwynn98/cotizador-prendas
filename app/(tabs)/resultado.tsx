@@ -6,7 +6,7 @@ import { useFocusEffect } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import {
-  Cotizacion, getCotizacionActual, precioSugerido, formatARS, formatFecha,
+  Cotizacion, getCotizacionActual, precioSugerido, formatARS, formatFecha, getMargenDefault,
 } from '@/lib/storage';
 import { COLORS, SHADOWS, RADIUS } from '@/lib/theme';
 import { Button, Card, Chip, SectionHeader, PageHeader, EmptyState, Row, Divider } from '@/components/ui-kit';
@@ -21,8 +21,9 @@ export default function ResultadoScreen() {
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        const c = await getCotizacionActual();
+        const [c, md] = await Promise.all([getCotizacionActual(), getMargenDefault()]);
         if (c) setCotizacion(c);
+        setMargen(md.toString());
       })();
     }, []),
   );
