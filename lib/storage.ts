@@ -1,4 +1,33 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
+
+// --- Storage abstraction (localStorage on web, AsyncStorage on native) ---
+
+const storage = {
+  async getItem(key: string): Promise<string | null> {
+    try {
+      if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
+        return localStorage.getItem(key);
+      }
+      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      return await storage.getItem(key);
+    } catch (e) {
+      console.warn('storage.getItem error:', e);
+      return null;
+    }
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    try {
+      if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
+        localStorage.setItem(key, value);
+        return;
+      }
+      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
+      await storage.setItem(key, value);
+    } catch (e) {
+      console.warn('storage.setItem error:', e);
+    }
+  },
+};
 
 // --- Types ---
 
@@ -78,9 +107,9 @@ const DEFAULT_TEJIDOS: Tejido[] = [
 // --- Storage helpers ---
 
 async function getOrDefault<T>(key: string, defaultValue: T): Promise<T> {
-  const raw = await AsyncStorage.getItem(key);
+  const raw = await storage.getItem(key);
   if (raw === null) {
-    await AsyncStorage.setItem(key, JSON.stringify(defaultValue));
+    await storage.setItem(key, JSON.stringify(defaultValue));
     return defaultValue;
   }
   return JSON.parse(raw);
@@ -93,7 +122,7 @@ export async function getPrendas(): Promise<Prenda[]> {
 }
 
 export async function savePrendas(prendas: Prenda[]): Promise<void> {
-  await AsyncStorage.setItem(KEYS.PRENDAS, JSON.stringify(prendas));
+  await storage.setItem(KEYS.PRENDAS, JSON.stringify(prendas));
 }
 
 // --- Tejidos ---
@@ -103,7 +132,7 @@ export async function getTejidos(): Promise<Tejido[]> {
 }
 
 export async function saveTejidos(tejidos: Tejido[]): Promise<void> {
-  await AsyncStorage.setItem(KEYS.TEJIDOS, JSON.stringify(tejidos));
+  await storage.setItem(KEYS.TEJIDOS, JSON.stringify(tejidos));
 }
 
 // --- Costo minuto ---
@@ -113,7 +142,7 @@ export async function getCostoMinuto(): Promise<number> {
 }
 
 export async function saveCostoMinuto(valor: number): Promise<void> {
-  await AsyncStorage.setItem(KEYS.COSTO_MINUTO, JSON.stringify(valor));
+  await storage.setItem(KEYS.COSTO_MINUTO, JSON.stringify(valor));
 }
 
 // --- Cotizaciones (historial) ---
@@ -125,18 +154,18 @@ export async function getCotizaciones(): Promise<Cotizacion[]> {
 export async function saveCotizacion(cotizacion: Cotizacion): Promise<void> {
   const lista = await getCotizaciones();
   lista.unshift(cotizacion); // más reciente primero
-  await AsyncStorage.setItem(KEYS.COTIZACIONES, JSON.stringify(lista));
+  await storage.setItem(KEYS.COTIZACIONES, JSON.stringify(lista));
 }
 
 export async function deleteCotizacion(id: string): Promise<void> {
   const lista = await getCotizaciones();
   const updated = lista.filter((c) => c.id !== id);
-  await AsyncStorage.setItem(KEYS.COTIZACIONES, JSON.stringify(updated));
+  await storage.setItem(KEYS.COTIZACIONES, JSON.stringify(updated));
 }
 
 // Cotización actual (para pasar entre Cotizar → Resultado sin URL params)
 export async function setCotizacionActual(cotizacion: Cotizacion): Promise<void> {
-  await AsyncStorage.setItem(KEYS.COTIZACION_ACTUAL, JSON.stringify(cotizacion));
+  await storage.setItem(KEYS.COTIZACION_ACTUAL, JSON.stringify(cotizacion));
 }
 
 export async function getCotizacionActual(): Promise<Cotizacion | null> {
