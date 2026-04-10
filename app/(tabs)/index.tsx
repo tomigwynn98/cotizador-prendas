@@ -34,6 +34,7 @@ export default function CotizarScreen() {
   const [lineas, setLineas] = useState<LineaUI[]>([]);
   const [cliente, setCliente] = useState('');
   const [consumoAutoLoaded, setConsumoAutoLoaded] = useState(false);
+  const [cantidadFromChip, setCantidadFromChip] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -97,6 +98,7 @@ export default function CotizarScreen() {
 
   const handleCantidadRapida = (q: number) => {
     setCantidad(q.toString());
+    setCantidadFromChip(true);
   };
 
   const handleAgregar = async () => {
@@ -119,6 +121,7 @@ export default function CotizarScreen() {
     }]);
     setConsumo('');
     setCantidad('');
+    setCantidadFromChip(false);
     setSelectedPrenda(null);
     setSelectedTejido(null);
     showToast(`${p.nombre} + ${t.nombre} agregado`);
@@ -203,18 +206,17 @@ export default function CotizarScreen() {
           {CANTIDADES_RAPIDAS.map((q) => (
             <TouchableOpacity
               key={q}
-              style={[styles.cantChip, cantidad === q.toString() && styles.cantChipSelected]}
+              style={[styles.cantChip, cantidadFromChip && cantidad === q.toString() && styles.cantChipSelected]}
               onPress={() => handleCantidadRapida(q)}
             >
-              <Text style={[styles.cantChipText, cantidad === q.toString() && styles.cantChipTextSel]}>{q}</Text>
+              <Text style={[styles.cantChipText, cantidadFromChip && cantidad === q.toString() && styles.cantChipTextSel]}>{q}</Text>
             </TouchableOpacity>
           ))}
           <TextInput style={[styles.input, styles.cantInput]}
             keyboardType="number-pad" placeholder="Otra"
-            placeholderTextColor={COLORS.textMuted} value={
-              CANTIDADES_RAPIDAS.includes(parseInt(cantidad)) ? '' : cantidad
-            }
-            onChangeText={setCantidad} />
+            placeholderTextColor={COLORS.textMuted}
+            value={cantidadFromChip ? '' : cantidad}
+            onChangeText={(v) => { setCantidad(v); setCantidadFromChip(false); }} />
         </View>
 
         {/* Resultado en vivo */}
