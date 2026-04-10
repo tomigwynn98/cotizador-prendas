@@ -5,7 +5,12 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 function confirmAction(title: string, message: string, onConfirm: () => void) {
   if (Platform.OS === 'web') {
-    if (window.confirm(`${title}\n${message}`)) {
+    // window.confirm can fail in mobile PWA, so try/catch
+    try {
+      if (window.confirm(`${title}\n${message}`)) {
+        onConfirm();
+      }
+    } catch {
       onConfirm();
     }
   } else {
@@ -221,7 +226,7 @@ export default function ConfigScreen() {
                     <Text style={styles.editTagText}>Editar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={(e) => { e.stopPropagation(); deletePrenda(p.id, p.nombre); }}
+                    onPress={() => deletePrenda(p.id, p.nombre)}
                     style={styles.deleteCircle}
                   >
                     <MaterialIcons name="close" size={14} color={COLORS.danger} />
@@ -318,7 +323,7 @@ export default function ConfigScreen() {
                     <Text style={styles.editTagText}>Editar</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    onPress={(e) => { e.stopPropagation(); deleteTejido(t.id, t.nombre); }}
+                    onPress={() => deleteTejido(t.id, t.nombre)}
                     style={styles.deleteCircle}
                   >
                     <MaterialIcons name="close" size={14} color={COLORS.danger} />
