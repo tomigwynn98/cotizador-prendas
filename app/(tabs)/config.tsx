@@ -1,46 +1,27 @@
 import { useCallback, useRef, useState } from 'react';
-import {
-  StyleSheet,
-  ScrollView,
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { StyleSheet, ScrollView, View, Text, TextInput, TouchableOpacity, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import {
-  Prenda,
-  Tejido,
-  TipoTejido,
-  getPrendas,
-  savePrendas,
-  getTejidos,
-  saveTejidos,
-  getCostoMinuto,
-  saveCostoMinuto,
-  generateId,
+  Prenda, Tejido, TipoTejido, getPrendas, savePrendas, getTejidos, saveTejidos,
+  getCostoMinuto, saveCostoMinuto, generateId,
 } from '@/lib/storage';
+import { COLORS, RADIUS } from '@/lib/theme';
+import { Button, Card, Chip, SectionHeader, PageHeader } from '@/components/ui-kit';
 import { showToast } from '@/components/toast';
 
 export default function ConfigScreen() {
   const [costoMinuto, setCostoMinuto] = useState('');
   const [prendas, setPrendas] = useState<Prenda[]>([]);
   const [tejidos, setTejidos] = useState<Tejido[]>([]);
-
-  // Editing state
   const [editingPrenda, setEditingPrenda] = useState<string | null>(null);
   const [editPrendaData, setEditPrendaData] = useState({ nombre: '', minutos: '', insumos: '' });
   const [editingTejido, setEditingTejido] = useState<string | null>(null);
   const [editTejidoData, setEditTejidoData] = useState({ nombre: '', tipo: 'punto' as TipoTejido, precio: '' });
-
-  // New item forms
   const [np, setNp] = useState({ nombre: '', minutos: '', insumos: '' });
   const [nt, setNt] = useState({ nombre: '', tipo: 'punto' as TipoTejido, precio: '' });
-
-  // Autoguardado costo minuto
-  const costoMinutoTimeout = useRef<ReturnType<typeof setTimeout>>();
+  const timeout = useRef<ReturnType<typeof setTimeout>>();
 
   useFocusEffect(
     useCallback(() => {
@@ -53,384 +34,291 @@ export default function ConfigScreen() {
     }, []),
   );
 
-  // --- Costo minuto con autoguardado ---
-  const handleCostoMinutoChange = (val: string) => {
+  const handleCostoChange = (val: string) => {
     setCostoMinuto(val);
-    if (costoMinutoTimeout.current) clearTimeout(costoMinutoTimeout.current);
-    costoMinutoTimeout.current = setTimeout(async () => {
-      const num = parseFloat(val);
-      if (num && num > 0) {
-        await saveCostoMinuto(num);
-        showToast(`Costo minuto: $${num}/min`);
-      }
+    if (timeout.current) clearTimeout(timeout.current);
+    timeout.current = setTimeout(async () => {
+      const n = parseFloat(val);
+      if (n && n > 0) { await saveCostoMinuto(n); showToast(`Costo minuto: $${n}/min`); }
     }, 800);
   };
 
-  // --- Prendas ---
-  const handleAddPrenda = async () => {
+  // Prendas
+  const addPrenda = async () => {
     if (!np.nombre.trim()) return showToast('Ingresa un nombre', 'error');
-    const minutos = parseFloat(np.minutos);
-    const insumos = parseFloat(np.insumos);
-    if (!minutos || minutos <= 0) return showToast('Minutos invalidos', 'error');
-    if (isNaN(insumos) || insumos < 0) return showToast('Insumos invalidos', 'error');
-
-    const nueva: Prenda = { id: generateId(), nombre: np.nombre.trim(), minutos, insumos };
-    const updated = [...prendas, nueva];
-    await savePrendas(updated);
-    setPrendas(updated);
+    const min = parseFloat(np.minutos), ins = parseFloat(np.insumos);
+    if (!min || min <= 0) return showToast('Minutos invalidos', 'error');
+    if (isNaN(ins) || ins < 0) return showToast('Insumos invalidos', 'error');
+    const nueva: Prenda = { id: generateId(), nombre: np.nombre.trim(), minutos: min, insumos: ins };
+    const u = [...prendas, nueva];
+    await savePrendas(u); setPrendas(u);
     setNp({ nombre: '', minutos: '', insumos: '' });
     showToast(`${nueva.nombre} agregada`);
   };
 
-  const handleDeletePrenda = (id: string, nombre: string) => {
-    Alert.alert('Eliminar prenda', `Seguro que queres eliminar "${nombre}"?`, [
+  const deletePrenda = (id: string, nombre: string) => {
+    Alert.alert('Eliminar prenda', `Eliminar "${nombre}"?`, [
       { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar', style: 'destructive',
-        onPress: async () => {
-          const updated = prendas.filter((p) => p.id !== id);
-          await savePrendas(updated);
-          setPrendas(updated);
-          showToast(`${nombre} eliminada`);
-        },
-      },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => {
+        const u = prendas.filter((p) => p.id !== id);
+        await savePrendas(u); setPrendas(u); showToast(`${nombre} eliminada`);
+      }},
     ]);
   };
 
-  const startEditPrenda = (p: Prenda) => {
+  const startEditP = (p: Prenda) => {
     setEditingPrenda(p.id);
     setEditPrendaData({ nombre: p.nombre, minutos: p.minutos.toString(), insumos: p.insumos.toString() });
   };
 
-  const handleSavePrenda = async () => {
+  const saveEditP = async () => {
     if (!editingPrenda) return;
-    const minutos = parseFloat(editPrendaData.minutos);
-    const insumos = parseFloat(editPrendaData.insumos);
+    const min = parseFloat(editPrendaData.minutos), ins = parseFloat(editPrendaData.insumos);
     if (!editPrendaData.nombre.trim()) return showToast('Nombre requerido', 'error');
-    if (!minutos || minutos <= 0) return showToast('Minutos invalidos', 'error');
-    if (isNaN(insumos) || insumos < 0) return showToast('Insumos invalidos', 'error');
-
-    const updated = prendas.map((p) =>
-      p.id === editingPrenda ? { ...p, nombre: editPrendaData.nombre.trim(), minutos, insumos } : p,
-    );
-    await savePrendas(updated);
-    setPrendas(updated);
-    setEditingPrenda(null);
-    showToast('Prenda actualizada');
+    if (!min || min <= 0) return showToast('Minutos invalidos', 'error');
+    if (isNaN(ins) || ins < 0) return showToast('Insumos invalidos', 'error');
+    const u = prendas.map((p) => p.id === editingPrenda ? { ...p, nombre: editPrendaData.nombre.trim(), minutos: min, insumos: ins } : p);
+    await savePrendas(u); setPrendas(u); setEditingPrenda(null); showToast('Prenda actualizada');
   };
 
-  // --- Tejidos ---
-  const handleAddTejido = async () => {
+  // Tejidos
+  const addTejido = async () => {
     if (!nt.nombre.trim()) return showToast('Ingresa un nombre', 'error');
     const precio = parseFloat(nt.precio);
     if (!precio || precio <= 0) return showToast('Precio invalido', 'error');
-
     const nuevo: Tejido = { id: generateId(), nombre: nt.nombre.trim(), tipo: nt.tipo, precio };
-    const updated = [...tejidos, nuevo];
-    await saveTejidos(updated);
-    setTejidos(updated);
+    const u = [...tejidos, nuevo];
+    await saveTejidos(u); setTejidos(u);
     setNt({ nombre: '', tipo: 'punto', precio: '' });
     showToast(`${nuevo.nombre} agregado`);
   };
 
-  const handleDeleteTejido = (id: string, nombre: string) => {
-    Alert.alert('Eliminar tejido', `Seguro que queres eliminar "${nombre}"?`, [
+  const deleteTejido = (id: string, nombre: string) => {
+    Alert.alert('Eliminar tejido', `Eliminar "${nombre}"?`, [
       { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar', style: 'destructive',
-        onPress: async () => {
-          const updated = tejidos.filter((t) => t.id !== id);
-          await saveTejidos(updated);
-          setTejidos(updated);
-          showToast(`${nombre} eliminado`);
-        },
-      },
+      { text: 'Eliminar', style: 'destructive', onPress: async () => {
+        const u = tejidos.filter((t) => t.id !== id);
+        await saveTejidos(u); setTejidos(u); showToast(`${nombre} eliminado`);
+      }},
     ]);
   };
 
-  const startEditTejido = (t: Tejido) => {
+  const startEditT = (t: Tejido) => {
     setEditingTejido(t.id);
     setEditTejidoData({ nombre: t.nombre, tipo: t.tipo, precio: t.precio.toString() });
   };
 
-  const handleSaveTejido = async () => {
+  const saveEditT = async () => {
     if (!editingTejido) return;
     const precio = parseFloat(editTejidoData.precio);
     if (!editTejidoData.nombre.trim()) return showToast('Nombre requerido', 'error');
     if (!precio || precio <= 0) return showToast('Precio invalido', 'error');
-
-    const updated = tejidos.map((t) =>
-      t.id === editingTejido
-        ? { ...t, nombre: editTejidoData.nombre.trim(), tipo: editTejidoData.tipo, precio }
-        : t,
-    );
-    await saveTejidos(updated);
-    setTejidos(updated);
-    setEditingTejido(null);
-    showToast('Tejido actualizado');
+    const u = tejidos.map((t) => t.id === editingTejido ? { ...t, nombre: editTejidoData.nombre.trim(), tipo: editTejidoData.tipo, precio } : t);
+    await saveTejidos(u); setTejidos(u); setEditingTejido(null); showToast('Tejido actualizado');
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <PageHeader icon="settings" title="Configuracion" subtitle="Parametros de tu fabrica" />
+
       {/* Costo minuto */}
-      <Text style={styles.sectionTitle}>Costo minuto de fabrica</Text>
-      <View style={styles.rowInput}>
-        <Text style={styles.prefix}>$</Text>
-        <TextInput
-          style={[styles.input, { flex: 1 }]}
-          keyboardType="decimal-pad"
-          value={costoMinuto}
-          onChangeText={handleCostoMinutoChange}
-          placeholder="15"
-          placeholderTextColor="#999"
-        />
-        <Text style={styles.suffix}>/min</Text>
-      </View>
-      <Text style={styles.autoSaveHint}>Se guarda automaticamente</Text>
+      <SectionHeader icon="speed" title="Costo minuto" subtitle="Se guarda automaticamente" />
+      <Card>
+        <View style={styles.costoRow}>
+          <View style={styles.costoIconWrap}>
+            <MaterialIcons name="attach-money" size={22} color={COLORS.primary} />
+          </View>
+          <TextInput
+            style={styles.costoInput}
+            keyboardType="decimal-pad"
+            value={costoMinuto}
+            onChangeText={handleCostoChange}
+            placeholder="15"
+            placeholderTextColor={COLORS.textMuted}
+          />
+          <Text style={styles.costoSuffix}>/min</Text>
+        </View>
+      </Card>
 
       {/* Prendas */}
-      <Text style={styles.sectionTitle}>Prendas</Text>
+      <SectionHeader icon="checkroom" title="Prendas" subtitle={`${prendas.length} configuradas`} />
       {prendas.map((p) =>
         editingPrenda === p.id ? (
-          <View key={p.id} style={styles.editForm}>
-            <TextInput
-              style={styles.editInput}
-              value={editPrendaData.nombre}
-              onChangeText={(v) => setEditPrendaData({ ...editPrendaData, nombre: v })}
-              placeholder="Nombre"
-              placeholderTextColor="#999"
-            />
+          <Card key={p.id} style={styles.editCard}>
+            <View style={styles.editHeader}>
+              <MaterialIcons name="edit" size={16} color={COLORS.primaryLight} />
+              <Text style={styles.editHeaderText}>Editando {p.nombre}</Text>
+            </View>
+            <TextInput style={styles.editInput} value={editPrendaData.nombre}
+              onChangeText={(v) => setEditPrendaData({ ...editPrendaData, nombre: v })} placeholder="Nombre" placeholderTextColor={COLORS.textMuted} />
             <View style={styles.editRow}>
-              <TextInput
-                style={[styles.editInput, { flex: 1 }]}
-                value={editPrendaData.minutos}
-                onChangeText={(v) => setEditPrendaData({ ...editPrendaData, minutos: v })}
-                placeholder="Minutos"
-                placeholderTextColor="#999"
-                keyboardType="decimal-pad"
-              />
-              <TextInput
-                style={[styles.editInput, { flex: 1 }]}
-                value={editPrendaData.insumos}
-                onChangeText={(v) => setEditPrendaData({ ...editPrendaData, insumos: v })}
-                placeholder="Insumos $"
-                placeholderTextColor="#999"
-                keyboardType="decimal-pad"
-              />
+              <TextInput style={[styles.editInput, { flex: 1 }]} value={editPrendaData.minutos}
+                onChangeText={(v) => setEditPrendaData({ ...editPrendaData, minutos: v })} placeholder="Minutos" placeholderTextColor={COLORS.textMuted} keyboardType="decimal-pad" />
+              <TextInput style={[styles.editInput, { flex: 1 }]} value={editPrendaData.insumos}
+                onChangeText={(v) => setEditPrendaData({ ...editPrendaData, insumos: v })} placeholder="Insumos $" placeholderTextColor={COLORS.textMuted} keyboardType="decimal-pad" />
             </View>
             <View style={styles.editActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditingPrenda(null)}>
-                <Text style={styles.cancelBtnText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveEditBtn} onPress={handleSavePrenda}>
-                <Text style={styles.saveEditBtnText}>Guardar</Text>
-              </TouchableOpacity>
+              <Button title="Cancelar" variant="ghost" onPress={() => setEditingPrenda(null)} style={{ flex: 1 }} />
+              <Button title="Guardar" icon="check" onPress={saveEditP} style={{ flex: 1 }} />
             </View>
-          </View>
+          </Card>
         ) : (
-          <TouchableOpacity key={p.id} style={styles.listItem} onPress={() => startEditPrenda(p)}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.listName}>{p.nombre}</Text>
-              <Text style={styles.listDetail}>{p.minutos} min | Insumos: ${p.insumos}</Text>
-            </View>
-            <Text style={styles.editHint}>Editar</Text>
-            <TouchableOpacity
-              onPress={() => handleDeletePrenda(p.id, p.nombre)}
-              style={styles.deleteBtn}
-              hitSlop={4}
-            >
-              <Text style={styles.deleteBtnText}>X</Text>
-            </TouchableOpacity>
+          <TouchableOpacity key={p.id} activeOpacity={0.7} onPress={() => startEditP(p)}>
+            <Card>
+              <View style={styles.itemRow}>
+                <View style={styles.itemIconWrap}>
+                  <MaterialIcons name="checkroom" size={18} color={COLORS.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemName}>{p.nombre}</Text>
+                  <Text style={styles.itemDetail}>{p.minutos} min | Insumos: ${p.insumos}</Text>
+                </View>
+                <TouchableOpacity style={styles.editTag} onPress={() => startEditP(p)}>
+                  <MaterialIcons name="edit" size={12} color={COLORS.primaryLight} />
+                  <Text style={styles.editTagText}>Editar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => deletePrenda(p.id, p.nombre)} style={styles.deleteCircle} hitSlop={4}>
+                  <MaterialIcons name="close" size={14} color={COLORS.danger} />
+                </TouchableOpacity>
+              </View>
+            </Card>
           </TouchableOpacity>
         ),
       )}
 
-      <View style={styles.addForm}>
-        <Text style={styles.addFormTitle}>Nueva prenda</Text>
-        <TextInput
-          style={styles.inputSmall}
-          placeholder="Nombre"
-          placeholderTextColor="#999"
-          value={np.nombre}
-          onChangeText={(v) => setNp({ ...np, nombre: v })}
-        />
-        <View style={styles.addFormRow}>
-          <TextInput
-            style={[styles.inputSmall, { flex: 1 }]}
-            placeholder="Minutos"
-            placeholderTextColor="#999"
-            keyboardType="decimal-pad"
-            value={np.minutos}
-            onChangeText={(v) => setNp({ ...np, minutos: v })}
-          />
-          <TextInput
-            style={[styles.inputSmall, { flex: 1 }]}
-            placeholder="Insumos $"
-            placeholderTextColor="#999"
-            keyboardType="decimal-pad"
-            value={np.insumos}
-            onChangeText={(v) => setNp({ ...np, insumos: v })}
-          />
+      <Card style={styles.addCard}>
+        <View style={styles.addHeader}>
+          <MaterialIcons name="add-circle" size={16} color={COLORS.success} />
+          <Text style={styles.addHeaderText}>Nueva prenda</Text>
         </View>
-        <TouchableOpacity style={styles.addBtn} onPress={handleAddPrenda}>
-          <Text style={styles.addBtnText}>+ Agregar prenda</Text>
-        </TouchableOpacity>
-      </View>
+        <TextInput style={styles.addInput} placeholder="Nombre" placeholderTextColor={COLORS.textMuted}
+          value={np.nombre} onChangeText={(v) => setNp({ ...np, nombre: v })} />
+        <View style={styles.addRow}>
+          <TextInput style={[styles.addInput, { flex: 1 }]} placeholder="Minutos" placeholderTextColor={COLORS.textMuted}
+            keyboardType="decimal-pad" value={np.minutos} onChangeText={(v) => setNp({ ...np, minutos: v })} />
+          <TextInput style={[styles.addInput, { flex: 1 }]} placeholder="Insumos $" placeholderTextColor={COLORS.textMuted}
+            keyboardType="decimal-pad" value={np.insumos} onChangeText={(v) => setNp({ ...np, insumos: v })} />
+        </View>
+        <Button title="+ Agregar prenda" icon="add" variant="success" onPress={addPrenda} />
+      </Card>
 
       {/* Tejidos */}
-      <Text style={styles.sectionTitle}>Tejidos</Text>
+      <SectionHeader icon="texture" title="Tejidos" subtitle={`${tejidos.length} configurados`} />
       {tejidos.map((t) =>
         editingTejido === t.id ? (
-          <View key={t.id} style={styles.editForm}>
-            <TextInput
-              style={styles.editInput}
-              value={editTejidoData.nombre}
-              onChangeText={(v) => setEditTejidoData({ ...editTejidoData, nombre: v })}
-              placeholder="Nombre"
-              placeholderTextColor="#999"
-            />
-            <View style={styles.tipoRow}>
-              <TouchableOpacity
-                style={[styles.tipoBtn, editTejidoData.tipo === 'punto' && styles.tipoBtnSel]}
-                onPress={() => setEditTejidoData({ ...editTejidoData, tipo: 'punto' })}
-              >
-                <Text style={[styles.tipoBtnText, editTejidoData.tipo === 'punto' && styles.tipoBtnTextSel]}>Punto</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.tipoBtn, editTejidoData.tipo === 'plano' && styles.tipoBtnSel]}
-                onPress={() => setEditTejidoData({ ...editTejidoData, tipo: 'plano' })}
-              >
-                <Text style={[styles.tipoBtnText, editTejidoData.tipo === 'plano' && styles.tipoBtnTextSel]}>Plano</Text>
-              </TouchableOpacity>
+          <Card key={t.id} style={styles.editCard}>
+            <View style={styles.editHeader}>
+              <MaterialIcons name="edit" size={16} color={COLORS.primaryLight} />
+              <Text style={styles.editHeaderText}>Editando {t.nombre}</Text>
             </View>
-            <TextInput
-              style={styles.editInput}
-              value={editTejidoData.precio}
+            <TextInput style={styles.editInput} value={editTejidoData.nombre}
+              onChangeText={(v) => setEditTejidoData({ ...editTejidoData, nombre: v })} placeholder="Nombre" placeholderTextColor={COLORS.textMuted} />
+            <View style={styles.tipoRow}>
+              <Chip label="Punto" selected={editTejidoData.tipo === 'punto'} icon="grain"
+                onPress={() => setEditTejidoData({ ...editTejidoData, tipo: 'punto' })} />
+              <Chip label="Plano" selected={editTejidoData.tipo === 'plano'} icon="view-stream"
+                onPress={() => setEditTejidoData({ ...editTejidoData, tipo: 'plano' })} />
+            </View>
+            <TextInput style={styles.editInput} value={editTejidoData.precio}
               onChangeText={(v) => setEditTejidoData({ ...editTejidoData, precio: v })}
               placeholder={editTejidoData.tipo === 'punto' ? 'Precio $/kg' : 'Precio $/m'}
-              placeholderTextColor="#999"
-              keyboardType="decimal-pad"
-            />
+              placeholderTextColor={COLORS.textMuted} keyboardType="decimal-pad" />
             <View style={styles.editActions}>
-              <TouchableOpacity style={styles.cancelBtn} onPress={() => setEditingTejido(null)}>
-                <Text style={styles.cancelBtnText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.saveEditBtn} onPress={handleSaveTejido}>
-                <Text style={styles.saveEditBtnText}>Guardar</Text>
-              </TouchableOpacity>
+              <Button title="Cancelar" variant="ghost" onPress={() => setEditingTejido(null)} style={{ flex: 1 }} />
+              <Button title="Guardar" icon="check" onPress={saveEditT} style={{ flex: 1 }} />
             </View>
-          </View>
+          </Card>
         ) : (
-          <TouchableOpacity key={t.id} style={styles.listItem} onPress={() => startEditTejido(t)}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.listName}>{t.nombre}</Text>
-              <Text style={styles.listDetail}>
-                {t.tipo === 'punto' ? 'Punto' : 'Plano'} | ${t.precio}/{t.tipo === 'punto' ? 'kg' : 'm'}
-              </Text>
-            </View>
-            <Text style={styles.editHint}>Editar</Text>
-            <TouchableOpacity
-              onPress={() => handleDeleteTejido(t.id, t.nombre)}
-              style={styles.deleteBtn}
-              hitSlop={4}
-            >
-              <Text style={styles.deleteBtnText}>X</Text>
-            </TouchableOpacity>
+          <TouchableOpacity key={t.id} activeOpacity={0.7} onPress={() => startEditT(t)}>
+            <Card>
+              <View style={styles.itemRow}>
+                <View style={[styles.itemIconWrap, { backgroundColor: COLORS.warningSoft }]}>
+                  <MaterialIcons name="texture" size={18} color={COLORS.warning} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemName}>{t.nombre}</Text>
+                  <Text style={styles.itemDetail}>
+                    {t.tipo === 'punto' ? 'Punto' : 'Plano'} | ${t.precio}/{t.tipo === 'punto' ? 'kg' : 'm'}
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.editTag} onPress={() => startEditT(t)}>
+                  <MaterialIcons name="edit" size={12} color={COLORS.primaryLight} />
+                  <Text style={styles.editTagText}>Editar</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => deleteTejido(t.id, t.nombre)} style={styles.deleteCircle} hitSlop={4}>
+                  <MaterialIcons name="close" size={14} color={COLORS.danger} />
+                </TouchableOpacity>
+              </View>
+            </Card>
           </TouchableOpacity>
         ),
       )}
 
-      <View style={styles.addForm}>
-        <Text style={styles.addFormTitle}>Nuevo tejido</Text>
-        <TextInput
-          style={styles.inputSmall}
-          placeholder="Nombre"
-          placeholderTextColor="#999"
-          value={nt.nombre}
-          onChangeText={(v) => setNt({ ...nt, nombre: v })}
-        />
-        <View style={styles.tipoRow}>
-          <TouchableOpacity
-            style={[styles.tipoBtn, nt.tipo === 'punto' && styles.tipoBtnSel]}
-            onPress={() => setNt({ ...nt, tipo: 'punto' })}
-          >
-            <Text style={[styles.tipoBtnText, nt.tipo === 'punto' && styles.tipoBtnTextSel]}>Punto</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tipoBtn, nt.tipo === 'plano' && styles.tipoBtnSel]}
-            onPress={() => setNt({ ...nt, tipo: 'plano' })}
-          >
-            <Text style={[styles.tipoBtnText, nt.tipo === 'plano' && styles.tipoBtnTextSel]}>Plano</Text>
-          </TouchableOpacity>
+      <Card style={styles.addCard}>
+        <View style={styles.addHeader}>
+          <MaterialIcons name="add-circle" size={16} color={COLORS.success} />
+          <Text style={styles.addHeaderText}>Nuevo tejido</Text>
         </View>
-        <TextInput
-          style={styles.inputSmall}
-          placeholder={nt.tipo === 'punto' ? 'Precio $/kg' : 'Precio $/m'}
-          placeholderTextColor="#999"
-          keyboardType="decimal-pad"
-          value={nt.precio}
-          onChangeText={(v) => setNt({ ...nt, precio: v })}
-        />
-        <TouchableOpacity style={styles.addBtn} onPress={handleAddTejido}>
-          <Text style={styles.addBtnText}>+ Agregar tejido</Text>
-        </TouchableOpacity>
-      </View>
+        <TextInput style={styles.addInput} placeholder="Nombre" placeholderTextColor={COLORS.textMuted}
+          value={nt.nombre} onChangeText={(v) => setNt({ ...nt, nombre: v })} />
+        <View style={styles.tipoRow}>
+          <Chip label="Punto" selected={nt.tipo === 'punto'} icon="grain"
+            onPress={() => setNt({ ...nt, tipo: 'punto' })} />
+          <Chip label="Plano" selected={nt.tipo === 'plano'} icon="view-stream"
+            onPress={() => setNt({ ...nt, tipo: 'plano' })} />
+        </View>
+        <TextInput style={styles.addInput} placeholder={nt.tipo === 'punto' ? 'Precio $/kg' : 'Precio $/m'}
+          placeholderTextColor={COLORS.textMuted} keyboardType="decimal-pad"
+          value={nt.precio} onChangeText={(v) => setNt({ ...nt, precio: v })} />
+        <Button title="+ Agregar tejido" icon="add" variant="success" onPress={addTejido} />
+      </Card>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f2f7' },
+  container: { flex: 1, backgroundColor: COLORS.bg },
   content: { padding: 20, paddingBottom: 60 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111', marginTop: 24, marginBottom: 10 },
-  rowInput: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 8, borderWidth: 1.5, borderColor: '#ddd' },
-  prefix: { fontSize: 18, fontWeight: '600', color: '#555', paddingLeft: 12 },
-  suffix: { fontSize: 14, color: '#888', paddingRight: 12 },
-  input: { padding: 12, fontSize: 18, color: '#333', fontWeight: '600' },
-  autoSaveHint: { fontSize: 11, color: '#aaa', marginTop: 4, fontStyle: 'italic' },
-  listItem: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff',
-    borderRadius: 10, padding: 12, marginBottom: 8,
+  costoRow: { flexDirection: 'row', alignItems: 'center' },
+  costoIconWrap: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primaryGhost,
+    justifyContent: 'center', alignItems: 'center', marginRight: 10,
   },
-  listName: { fontSize: 15, fontWeight: '600', color: '#222' },
-  listDetail: { fontSize: 13, color: '#777', marginTop: 2 },
-  editHint: { fontSize: 12, color: '#0a7ea4', fontWeight: '500', marginRight: 10 },
-  deleteBtn: {
-    width: 30, height: 30, borderRadius: 15, backgroundColor: '#ff3b30',
+  costoInput: { flex: 1, fontSize: 24, fontWeight: '700', color: COLORS.text, paddingVertical: 4 },
+  costoSuffix: { fontSize: 16, color: COLORS.textMuted, fontWeight: '500' },
+  itemRow: { flexDirection: 'row', alignItems: 'center' },
+  itemIconWrap: {
+    width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primaryGhost,
+    justifyContent: 'center', alignItems: 'center', marginRight: 10,
+  },
+  itemName: { fontSize: 15, fontWeight: '600', color: COLORS.text },
+  itemDetail: { fontSize: 12, color: COLORS.textSecondary, marginTop: 1 },
+  editTag: {
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.sm,
+    backgroundColor: COLORS.primaryGhost, marginRight: 8,
+  },
+  editTagText: { fontSize: 11, color: COLORS.primaryLight, fontWeight: '600' },
+  deleteCircle: {
+    width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.dangerSoft,
     justifyContent: 'center', alignItems: 'center',
   },
-  deleteBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-  // Edit inline
-  editForm: {
-    backgroundColor: '#fff', borderRadius: 10, padding: 12, marginBottom: 8,
-    borderWidth: 2, borderColor: '#0a7ea4', gap: 8,
-  },
+  editCard: { borderWidth: 2, borderColor: COLORS.primaryLight, gap: 8 },
+  editHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  editHeaderText: { fontSize: 13, fontWeight: '600', color: COLORS.primaryLight },
   editInput: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10,
-    fontSize: 15, backgroundColor: '#f8f8f8', color: '#333',
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.sm, padding: 10,
+    fontSize: 15, backgroundColor: COLORS.primaryGhost, color: COLORS.text,
   },
   editRow: { flexDirection: 'row', gap: 8 },
-  editActions: { flexDirection: 'row', gap: 8, justifyContent: 'flex-end' },
-  cancelBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, backgroundColor: '#f0f0f0' },
-  cancelBtnText: { fontSize: 14, fontWeight: '600', color: '#666' },
-  saveEditBtn: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8, backgroundColor: '#0a7ea4' },
-  saveEditBtnText: { fontSize: 14, fontWeight: '600', color: '#fff' },
-  // Add form
-  addForm: { backgroundColor: '#fff', borderRadius: 10, padding: 12, gap: 8, marginTop: 4 },
-  addFormTitle: { fontSize: 14, fontWeight: '600', color: '#888', marginBottom: 2 },
-  addFormRow: { flexDirection: 'row', gap: 8 },
-  inputSmall: {
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10,
-    fontSize: 15, backgroundColor: '#f8f8f8', color: '#333',
+  editActions: { flexDirection: 'row', gap: 8 },
+  addCard: { borderStyle: 'dashed', borderWidth: 1.5, borderColor: COLORS.border, gap: 8 },
+  addHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  addHeaderText: { fontSize: 13, fontWeight: '600', color: COLORS.success },
+  addInput: {
+    borderWidth: 1, borderColor: COLORS.border, borderRadius: RADIUS.sm, padding: 10,
+    fontSize: 15, backgroundColor: COLORS.bgWhite, color: COLORS.text,
   },
-  addBtn: { backgroundColor: '#34c759', borderRadius: 8, padding: 12, alignItems: 'center' },
-  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  addRow: { flexDirection: 'row', gap: 8 },
   tipoRow: { flexDirection: 'row', gap: 8 },
-  tipoBtn: {
-    flex: 1, paddingVertical: 10, borderRadius: 8, borderWidth: 1.5,
-    borderColor: '#ddd', alignItems: 'center', backgroundColor: '#f8f8f8',
-  },
-  tipoBtnSel: { borderColor: '#0a7ea4', backgroundColor: '#0a7ea4' },
-  tipoBtnText: { fontSize: 14, fontWeight: '600', color: '#333' },
-  tipoBtnTextSel: { color: '#fff' },
 });

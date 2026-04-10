@@ -1,22 +1,13 @@
 import { useCallback, useState } from 'react';
-import {
-  StyleSheet,
-  ScrollView,
-  View,
-  Text,
-  TouchableOpacity,
-  Alert,
-} from 'react-native';
+import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import {
-  Cotizacion,
-  getCotizaciones,
-  deleteCotizacion,
-  setCotizacionActual,
-  formatARS,
-  formatFecha,
+  Cotizacion, getCotizaciones, deleteCotizacion, setCotizacionActual, formatARS, formatFecha,
 } from '@/lib/storage';
+import { COLORS, SHADOWS, RADIUS } from '@/lib/theme';
+import { Card, PageHeader, EmptyState } from '@/components/ui-kit';
 import { showToast } from '@/components/toast';
 
 export default function HistorialScreen() {
@@ -25,90 +16,110 @@ export default function HistorialScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      (async () => {
-        const c = await getCotizaciones();
-        setCotizaciones(c);
-      })();
+      (async () => setCotizaciones(await getCotizaciones()))();
     }, []),
   );
 
-  const handleVer = async (cotizacion: Cotizacion) => {
-    await setCotizacionActual(cotizacion);
+  const handleVer = async (c: Cotizacion) => {
+    await setCotizacionActual(c);
     router.navigate('/resultado');
   };
 
   const handleEliminar = (id: string) => {
-    Alert.alert(
-      'Eliminar cotizacion',
-      'Seguro que queres eliminar esta cotizacion del historial?',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            await deleteCotizacion(id);
-            setCotizaciones((prev) => prev.filter((c) => c.id !== id));
-            showToast('Cotizacion eliminada');
-          },
+    Alert.alert('Eliminar cotizacion', 'Seguro que queres eliminar esta cotizacion?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar', style: 'destructive',
+        onPress: async () => {
+          await deleteCotizacion(id);
+          setCotizaciones((prev) => prev.filter((c) => c.id !== id));
+          showToast('Cotizacion eliminada');
         },
-      ],
-    );
+      },
+    ]);
   };
-
-  if (cotizaciones.length === 0) {
-    return (
-      <View style={[styles.container, styles.centered]}>
-        <Text style={styles.emptyText}>No hay cotizaciones en el historial.</Text>
-        <Text style={styles.emptyHint}>Las cotizaciones se guardan automaticamente al cotizar.</Text>
-      </View>
-    );
-  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Historial ({cotizaciones.length})</Text>
+      <PageHeader
+        icon="history"
+        title="Historial"
+        subtitle={cotizaciones.length > 0 ? `${cotizaciones.length} cotizaciones` : 'Tus cotizaciones'}
+      />
 
-      {cotizaciones.map((c) => {
-        const resumen = c.lineas.map((l) => l.prenda.nombre).join(', ');
-        const totalUnidades = c.lineas.reduce((s, l) => s + l.cantidad, 0);
+      {cotizaciones.length === 0 ? (
+        <EmptyState
+          icon="history"
+          title="Sin cotizaciones"
+          subtitle="Las cotizaciones se guardan automaticamente cuando cotizas un pedido"
+        />
+      ) : (
+        cotizaciones.map((c) => {
+          const resumen = c.lineas.map((l) => l.prenda.nombre).join(', ');
+          const totalUnidades = c.lineas.reduce((s, l) => s + l.cantidad, 0);
 
-        return (
-          <TouchableOpacity key={c.id} style={styles.card} onPress={() => handleVer(c)}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardFecha}>{formatFecha(c.fecha)}</Text>
-              <TouchableOpacity onPress={() => handleEliminar(c.id)} hitSlop={8}>
-                <Text style={styles.deleteText}>Eliminar</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.cardPrendas} numberOfLines={1}>{resumen}</Text>
-            <View style={styles.cardFooter}>
-              <Text style={styles.cardDetail}>{totalUnidades} unidades | {c.lineas.length} items</Text>
-              <Text style={styles.cardTotal}>{formatARS(c.totalGeneral)}</Text>
-            </View>
-          </TouchableOpacity>
-        );
-      })}
+          return (
+            <TouchableOpacity key={c.id} activeOpacity={0.7} onPress={() => handleVer(c)}>
+              <Card>
+                <View style={styles.cardTop}>
+                  <View style={styles.dateRow}>
+                    <MaterialIcons name="schedule" size={14} color={COLORS.textMuted} />
+                    <Text style={styles.fecha}>{formatFecha(c.fecha)}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => handleEliminar(c.id)} hitSlop={8} style={styles.deleteBtn}>
+                    <MaterialIcons name="delete-outline" size={18} color={COLORS.danger} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.cardBody}>
+                  <View style={styles.iconWrap}>
+                    <MaterialIcons name="receipt-long" size={22} color={COLORS.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.prendas} numberOfLines={1}>{resumen}</Text>
+                    <Text style={styles.detail}>
+                      {totalUnidades} unidades | {c.lineas.length} {c.lineas.length === 1 ? 'item' : 'items'}
+                    </Text>
+                  </View>
+                  <View style={styles.priceWrap}>
+                    <Text style={styles.priceLabel}>Costo total</Text>
+                    <Text style={styles.price}>{formatARS(c.totalGeneral)}</Text>
+                  </View>
+                </View>
+
+                <View style={styles.tapHint}>
+                  <MaterialIcons name="touch-app" size={14} color={COLORS.primaryLight} />
+                  <Text style={styles.tapHintText}>Toca para ver desglose</Text>
+                </View>
+              </Card>
+            </TouchableOpacity>
+          );
+        })
+      )}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f2f7' },
+  container: { flex: 1, backgroundColor: COLORS.bg },
   content: { padding: 20, paddingBottom: 40 },
-  centered: { justifyContent: 'center', alignItems: 'center' },
-  emptyText: { fontSize: 16, color: '#999', textAlign: 'center' },
-  emptyHint: { fontSize: 13, color: '#bbb', textAlign: 'center', marginTop: 6 },
-  title: { fontSize: 20, fontWeight: '700', color: '#111', marginBottom: 16 },
-  card: {
-    backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+  cardTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  fecha: { fontSize: 12, color: COLORS.textMuted },
+  deleteBtn: { padding: 4 },
+  cardBody: { flexDirection: 'row', alignItems: 'center' },
+  iconWrap: {
+    width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primaryGhost,
+    justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  cardFecha: { fontSize: 12, color: '#888' },
-  deleteText: { fontSize: 12, color: '#ff3b30', fontWeight: '600' },
-  cardPrendas: { fontSize: 15, fontWeight: '600', color: '#222', marginBottom: 6 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardDetail: { fontSize: 13, color: '#777' },
-  cardTotal: { fontSize: 15, fontWeight: '700', color: '#0a7ea4' },
+  prendas: { fontSize: 15, fontWeight: '600', color: COLORS.text },
+  detail: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
+  priceWrap: { alignItems: 'flex-end' },
+  priceLabel: { fontSize: 10, color: COLORS.textMuted },
+  price: { fontSize: 16, fontWeight: '800', color: COLORS.primary },
+  tapHint: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    marginTop: 8, paddingTop: 8, borderTopWidth: 1, borderTopColor: COLORS.border,
+  },
+  tapHintText: { fontSize: 11, color: COLORS.primaryLight },
 });
