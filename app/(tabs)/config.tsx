@@ -24,6 +24,7 @@ function confirmAction(title: string, message: string, onConfirm: () => void) {
 import {
   Prenda, Tejido, TipoTejido, getPrendas, savePrendas, getTejidos, saveTejidos,
   getCostoMinuto, saveCostoMinuto, getMargenDefault, saveMargenDefault, generateId,
+  exportarDatos, importarDatos,
 } from '@/lib/storage';
 import { COLORS, RADIUS } from '@/lib/theme';
 import { Button, Card, Chip, SectionHeader, PageHeader } from '@/components/ui-kit';
@@ -385,6 +386,43 @@ export default function ConfigScreen() {
           </Card>
         </View>
       )}
+
+      {/* Backup */}
+      <SectionHeader icon="backup" title="Backup de datos" subtitle="Exportar o importar configuracion" />
+      <Card>
+        <Button title="Exportar datos (copiar JSON)" icon="file-download" variant="secondary"
+          onPress={async () => {
+            try {
+              const json = await exportarDatos();
+              if (Platform.OS === 'web') {
+                await navigator.clipboard.writeText(json);
+                showToast('Datos copiados al portapapeles');
+              }
+            } catch { showToast('Error al exportar', 'error'); }
+          }}
+        />
+        <View style={{ height: 8 }} />
+        <Button title="Importar datos (pegar JSON)" icon="file-upload" variant="ghost"
+          onPress={async () => {
+            try {
+              if (Platform.OS === 'web') {
+                const json = await navigator.clipboard.readText();
+                if (!json || !json.includes('prendas')) {
+                  return showToast('No hay datos validos en el portapapeles', 'error');
+                }
+                await importarDatos(json);
+                // Reload data
+                const [cm, p, t, md] = await Promise.all([getCostoMinuto(), getPrendas(), getTejidos(), getMargenDefault()]);
+                setCostoMinuto(cm.toString());
+                setMargenDefault(md.toString());
+                setPrendas(p);
+                setTejidos(t);
+                showToast('Datos importados correctamente');
+              }
+            } catch { showToast('Error al importar', 'error'); }
+          }}
+        />
+      </Card>
     </ScrollView>
   );
 }

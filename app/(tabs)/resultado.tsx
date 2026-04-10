@@ -48,6 +48,7 @@ export default function ResultadoScreen() {
 
   const buildTextoWhatsApp = (): string => {
     let txt = `*Cotizacion - ${formatFecha(cotizacion.fecha)}*\n`;
+    if (cotizacion.cliente) txt += `Cliente: ${cotizacion.cliente}\n`;
     txt += `Costo minuto: ${formatARS(cotizacion.costoMinuto)}/min\n\n`;
     cotizacion.lineas.forEach((l, i) => {
       const u = l.tejido.tipo === 'punto' ? 'kg' : 'm';
@@ -81,7 +82,7 @@ export default function ResultadoScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <PageHeader
         icon="receipt-long"
-        title="Cotizacion"
+        title={cotizacion.cliente ? `Cotizacion - ${cotizacion.cliente}` : 'Cotizacion'}
         subtitle={formatFecha(cotizacion.fecha)}
         rightContent={
           <View style={styles.shareRow}>

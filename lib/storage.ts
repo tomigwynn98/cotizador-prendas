@@ -69,11 +69,31 @@ export interface LineaResultado {
 export interface Cotizacion {
   id: string;
   fecha: string; // ISO string
+  cliente?: string;
   lineas: LineaResultado[];
   costoMinuto: number;
   totalGeneral: number;
   margen: number;
   precioSugeridoTotal: number;
+}
+
+// --- Backup ---
+
+export async function exportarDatos(): Promise<string> {
+  const [prendas, tejidos, cm, md, cotizaciones, consumos] = await Promise.all([
+    getPrendas(), getTejidos(), getCostoMinuto(), getMargenDefault(), getCotizaciones(), getConsumos(),
+  ]);
+  return JSON.stringify({ prendas, tejidos, costoMinuto: cm, margenDefault: md, cotizaciones, consumos, exportDate: new Date().toISOString() }, null, 2);
+}
+
+export async function importarDatos(json: string): Promise<void> {
+  const data = JSON.parse(json);
+  if (data.prendas) await savePrendas(data.prendas);
+  if (data.tejidos) await saveTejidos(data.tejidos);
+  if (data.costoMinuto) await saveCostoMinuto(data.costoMinuto);
+  if (data.margenDefault) await saveMargenDefault(data.margenDefault);
+  if (data.cotizaciones) await storage.setItem(KEYS.COTIZACIONES, JSON.stringify(data.cotizaciones));
+  if (data.consumos) await storage.setItem(KEYS.CONSUMOS, JSON.stringify(data.consumos));
 }
 
 // --- Keys ---
@@ -236,6 +256,7 @@ export function calcularCotizacion(
   tejidos: Tejido[],
   costoMinuto: number,
   margen: number,
+  cliente?: string,
 ): Cotizacion | null {
   const resultados: LineaResultado[] = [];
 
@@ -252,6 +273,7 @@ export function calcularCotizacion(
   return {
     id: generateId(),
     fecha: new Date().toISOString(),
+    cliente: cliente || undefined,
     lineas: resultados,
     costoMinuto,
     totalGeneral,

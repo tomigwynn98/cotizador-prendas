@@ -32,6 +32,7 @@ export default function CotizarScreen() {
   const [consumo, setConsumo] = useState('');
   const [cantidad, setCantidad] = useState('');
   const [lineas, setLineas] = useState<LineaUI[]>([]);
+  const [cliente, setCliente] = useState('');
   const [consumoAutoLoaded, setConsumoAutoLoaded] = useState(false);
 
   useFocusEffect(
@@ -125,7 +126,7 @@ export default function CotizarScreen() {
 
   const handleCotizar = async () => {
     if (lineas.length === 0) return showToast('Agrega al menos una prenda', 'error');
-    const cot = calcularCotizacion(lineas, prendas, tejidos, costoMinuto, margenDefault);
+    const cot = calcularCotizacion(lineas, prendas, tejidos, costoMinuto, margenDefault, cliente.trim() || undefined);
     if (!cot) return showToast('Error al calcular', 'error');
     await setCotizacionActual(cot);
     await saveCotizacion(cot);
@@ -141,6 +142,20 @@ export default function CotizarScreen() {
         title="Cotizar"
         subtitle={lineas.length > 0 ? `${lineas.length} items en el pedido` : 'Cotiza en segundos'}
       />
+
+      {/* Cliente opcional */}
+      <Card style={{ marginBottom: 8 }}>
+        <View style={styles.clienteRow}>
+          <MaterialIcons name="person" size={18} color={COLORS.primaryLight} />
+          <TextInput
+            style={styles.clienteInput}
+            placeholder="Cliente (opcional)"
+            placeholderTextColor={COLORS.textMuted}
+            value={cliente}
+            onChangeText={setCliente}
+          />
+        </View>
+      </Card>
 
       {/* Form principal */}
       <Card>
@@ -331,4 +346,6 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   totalLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text },
   totalValue: { fontSize: 16, fontWeight: '800', color: COLORS.primary },
+  clienteRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  clienteInput: { flex: 1, fontSize: 15, color: COLORS.text, paddingVertical: 4 },
 });
