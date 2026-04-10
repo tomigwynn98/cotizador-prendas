@@ -9,7 +9,7 @@ const storage = {
         return localStorage.getItem(key);
       }
       const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-      return await storage.getItem(key);
+      return await AsyncStorage.getItem(key);
     } catch (e) {
       console.warn('storage.getItem error:', e);
       return null;
@@ -22,7 +22,7 @@ const storage = {
         return;
       }
       const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-      await storage.setItem(key, value);
+      await AsyncStorage.setItem(key, value);
     } catch (e) {
       console.warn('storage.setItem error:', e);
     }
@@ -169,7 +169,7 @@ export async function setCotizacionActual(cotizacion: Cotizacion): Promise<void>
 }
 
 export async function getCotizacionActual(): Promise<Cotizacion | null> {
-  const raw = await AsyncStorage.getItem(KEYS.COTIZACION_ACTUAL);
+  const raw = await storage.getItem(KEYS.COTIZACION_ACTUAL);
   return raw ? JSON.parse(raw) : null;
 }
 
