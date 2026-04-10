@@ -218,7 +218,7 @@ export default function CotizarScreen() {
             <Divider />
             <View style={styles.precioRow}>
               <MaterialIcons name="sell" size={16} color={COLORS.primary} />
-              <Text style={styles.precioLabel}>Precio sugerido ({margenDefault}%)</Text>
+              <Text style={styles.precioLabel}>Precio de venta ({margenDefault}%)</Text>
               <Text style={styles.precioValue}>{formatARS(liveCalc.precioUnit)}/u</Text>
             </View>
             <View style={[styles.precioRow, styles.precioTotal]}>

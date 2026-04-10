@@ -57,9 +57,9 @@ export default function ResultadoScreen() {
       txt += `  Insumos: ${formatARS(l.insumos)}\n`;
       txt += `  *Costo unitario: ${formatARS(l.costoUnitario)}*\n`;
       txt += `  Cantidad: ${l.cantidad} u | Subtotal: ${formatARS(l.subtotal)}\n`;
-      txt += `  Precio sugerido: ${formatARS(precioSugerido(l.costoUnitario, margenNum))}/u\n\n`;
+      txt += `  Precio de venta: ${formatARS(precioSugerido(l.costoUnitario, margenNum))}/u\n\n`;
     });
-    txt += `---\n*TOTAL COSTO: ${formatARS(totalCosto)}*\nMargen: ${margenNum}%\n*PRECIO SUGERIDO TOTAL: ${formatARS(totalPrecio)}*\nTotal unidades: ${totalUnidades}`;
+    txt += `---\n*TOTAL COSTO: ${formatARS(totalCosto)}*\nMargen: ${margenNum}%\n*PRECIO DE VENTA TOTAL: ${formatARS(totalPrecio)}*\nTotal unidades: ${totalUnidades}`;
     return txt;
   };
 
@@ -115,7 +115,7 @@ export default function ResultadoScreen() {
             <Row icon="functions" label="Costo unitario" value={formatARS(l.costoUnitario)} bold />
             <Row icon="inventory" label={`Subtotal (x${l.cantidad})`} value={formatARS(l.subtotal)} bold />
             <Divider />
-            <Row icon="sell" label="Precio sugerido/u" value={formatARS(precioUnit)} accent bold />
+            <Row icon="sell" label="Precio de venta/u" value={formatARS(precioUnit)} accent bold />
           </Card>
         );
       })}
@@ -148,7 +148,7 @@ export default function ResultadoScreen() {
         <Row icon="trending-up" label={`Margen ${margenNum}%`} value="" />
         <View style={styles.finalRow}>
           <MaterialIcons name="star" size={18} color={COLORS.primary} />
-          <Text style={styles.finalLabel}>PRECIO SUGERIDO TOTAL</Text>
+          <Text style={styles.finalLabel}>PRECIO DE VENTA TOTAL</Text>
           <Text style={styles.finalValue}>{formatARS(totalPrecio)}</Text>
         </View>
       </Card>
