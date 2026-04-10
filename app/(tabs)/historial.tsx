@@ -1,7 +1,18 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Alert } from 'react-native';
+import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+
+function confirmAction(title: string, message: string, onConfirm: () => void) {
+  if (Platform.OS === 'web') {
+    if (window.confirm(`${title}\n${message}`)) onConfirm();
+  } else {
+    Alert.alert(title, message, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: onConfirm },
+    ]);
+  }
+}
 
 import {
   Cotizacion, getCotizaciones, deleteCotizacion, setCotizacionActual, formatARS, formatFecha,
@@ -26,17 +37,11 @@ export default function HistorialScreen() {
   };
 
   const handleEliminar = (id: string) => {
-    Alert.alert('Eliminar cotizacion', 'Seguro que queres eliminar esta cotizacion?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Eliminar', style: 'destructive',
-        onPress: async () => {
-          await deleteCotizacion(id);
-          setCotizaciones((prev) => prev.filter((c) => c.id !== id));
-          showToast('Cotizacion eliminada');
-        },
-      },
-    ]);
+    confirmAction('Eliminar cotizacion', 'Seguro que queres eliminar esta cotizacion?', async () => {
+      await deleteCotizacion(id);
+      setCotizaciones((prev) => prev.filter((c) => c.id !== id));
+      showToast('Cotizacion eliminada');
+    });
   };
 
   return (

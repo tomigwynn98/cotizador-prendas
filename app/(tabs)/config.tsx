@@ -1,7 +1,20 @@
 import { useCallback, useRef, useState } from 'react';
-import { StyleSheet, ScrollView, View, Text, TextInput, TouchableOpacity, Alert, Animated } from 'react-native';
+import { StyleSheet, ScrollView, View, Text, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+
+function confirmAction(title: string, message: string, onConfirm: () => void) {
+  if (Platform.OS === 'web') {
+    if (window.confirm(`${title}\n${message}`)) {
+      onConfirm();
+    }
+  } else {
+    Alert.alert(title, message, [
+      { text: 'Cancelar', style: 'cancel' },
+      { text: 'Eliminar', style: 'destructive', onPress: onConfirm },
+    ]);
+  }
+}
 
 import {
   Prenda, Tejido, TipoTejido, getPrendas, savePrendas, getTejidos, saveTejidos,
@@ -66,13 +79,10 @@ export default function ConfigScreen() {
   };
 
   const deletePrenda = (id: string, nombre: string) => {
-    Alert.alert('Eliminar prenda', `Eliminar "${nombre}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        const u = prendas.filter((p) => p.id !== id);
-        await savePrendas(u); setPrendas(u); showToast(`${nombre} eliminada`);
-      }},
-    ]);
+    confirmAction('Eliminar prenda', `Eliminar "${nombre}"?`, async () => {
+      const u = prendas.filter((p) => p.id !== id);
+      await savePrendas(u); setPrendas(u); showToast(`${nombre} eliminada`);
+    });
   };
 
   const startEditP = (p: Prenda) => {
@@ -103,13 +113,10 @@ export default function ConfigScreen() {
   };
 
   const deleteTejido = (id: string, nombre: string) => {
-    Alert.alert('Eliminar tejido', `Eliminar "${nombre}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Eliminar', style: 'destructive', onPress: async () => {
-        const u = tejidos.filter((t) => t.id !== id);
-        await saveTejidos(u); setTejidos(u); showToast(`${nombre} eliminado`);
-      }},
-    ]);
+    confirmAction('Eliminar tejido', `Eliminar "${nombre}"?`, async () => {
+      const u = tejidos.filter((t) => t.id !== id);
+      await saveTejidos(u); setTejidos(u); showToast(`${nombre} eliminado`);
+    });
   };
 
   const startEditT = (t: Tejido) => {
