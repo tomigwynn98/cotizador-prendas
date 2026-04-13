@@ -40,7 +40,7 @@ export default function ResultadoScreen() {
     );
   }
 
-  const margenNum = parseFloat(margen) || 0;
+  const margenNum = parseFloat(margen.replace(',', '.')) || 0;
   const l = cotizacion.lineas[0]; // Una sola prenda
   const u = l.tejido.tipo === 'punto' ? 'kg' : 'm';
   const precioUnit = precioSugerido(l.costoUnitario, margenNum);

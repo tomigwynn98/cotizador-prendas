@@ -6,7 +6,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import {
   Prenda, Tejido, getPrendas, getTejidos, getCostoMinuto,
   calcularCotizacion, setCotizacionActual, saveCotizacion, formatARS,
-  getConsumo, saveConsumo, getMargenDefault, precioSugerido,
+  getConsumo, saveConsumo, getMargenDefault, precioSugerido, parseNumero,
 } from '@/lib/storage';
 import { COLORS, RADIUS } from '@/lib/theme';
 import { Button, Card, Chip, PageHeader, Row, Divider } from '@/components/ui-kit';
@@ -54,7 +54,7 @@ export default function CotizarScreen() {
   // Cálculo en vivo
   const liveCalc = (() => {
     if (!selectedPrenda || !selectedTejido) return null;
-    const c = parseFloat(consumo), q = parseInt(cantidad, 10);
+    const c = parseNumero(consumo), q = parseInt(cantidad, 10);
     if (!c || c <= 0 || !q || q <= 0) return null;
     const p = prendas.find((x) => x.id === selectedPrenda);
     const t = tejidos.find((x) => x.id === selectedTejido);
@@ -69,7 +69,7 @@ export default function CotizarScreen() {
 
   const handleCalcSave = async () => {
     if (!selectedPrenda || !selectedTejido) return showToast('Selecciona prenda y tejido', 'error');
-    const c = parseFloat(consumo), q = parseInt(cantidad, 10);
+    const c = parseNumero(consumo), q = parseInt(cantidad, 10);
     if (!c || c <= 0) return showToast('Consumo invalido', 'error');
     if (!q || q <= 0) return showToast('Cantidad invalida', 'error');
 

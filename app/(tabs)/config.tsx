@@ -23,7 +23,7 @@ function confirmAction(title: string, message: string, onConfirm: () => void) {
 
 import {
   Prenda, Tejido, TipoTejido, getPrendas, savePrendas, getTejidos, saveTejidos,
-  getCostoMinuto, saveCostoMinuto, getMargenDefault, saveMargenDefault, generateId,
+  getCostoMinuto, saveCostoMinuto, getMargenDefault, saveMargenDefault, generateId, parseNumero,
   exportarDatos, importarDatos,
 } from '@/lib/storage';
 import { COLORS, RADIUS } from '@/lib/theme';
@@ -69,7 +69,7 @@ export default function ConfigScreen() {
     setCostoMinuto(val);
     if (timeout.current) clearTimeout(timeout.current);
     timeout.current = setTimeout(async () => {
-      const n = parseFloat(val);
+      const n = parseNumero(val);
       if (n && n > 0) { await saveCostoMinuto(n); showToast(`Costo minuto: $${n}/min`); }
     }, 800);
   };
@@ -78,7 +78,7 @@ export default function ConfigScreen() {
     setMargenDefault(val);
     if (margenTimeout.current) clearTimeout(margenTimeout.current);
     margenTimeout.current = setTimeout(async () => {
-      const n = parseFloat(val);
+      const n = parseNumero(val);
       if (n && n > 0 && n < 100) { await saveMargenDefault(n); showToast(`Margen default: ${n}%`); }
     }, 800);
   };
@@ -86,7 +86,7 @@ export default function ConfigScreen() {
   // --- Prendas ---
   const addPrenda = async () => {
     if (!np.nombre.trim()) return showToast('Ingresa un nombre', 'error');
-    const min = parseFloat(np.minutos), ins = parseFloat(np.insumos);
+    const min = parseNumero(np.minutos), ins = parseNumero(np.insumos);
     if (!min || min <= 0) return showToast('Minutos invalidos', 'error');
     if (isNaN(ins) || ins < 0) return showToast('Insumos invalidos', 'error');
     const nueva: Prenda = { id: generateId(), nombre: np.nombre.trim(), minutos: min, insumos: ins };
@@ -110,7 +110,7 @@ export default function ConfigScreen() {
 
   const saveEditP = async () => {
     if (!editingPrenda) return;
-    const min = parseFloat(editPrendaData.minutos), ins = parseFloat(editPrendaData.insumos);
+    const min = parseNumero(editPrendaData.minutos), ins = parseNumero(editPrendaData.insumos);
     if (!editPrendaData.nombre.trim()) return showToast('Nombre requerido', 'error');
     if (!min || min <= 0) return showToast('Minutos invalidos', 'error');
     if (isNaN(ins) || ins < 0) return showToast('Insumos invalidos', 'error');
@@ -121,7 +121,7 @@ export default function ConfigScreen() {
   // --- Tejidos ---
   const addTejido = async () => {
     if (!nt.nombre.trim()) return showToast('Ingresa un nombre', 'error');
-    const precio = parseFloat(nt.precio);
+    const precio = parseNumero(nt.precio);
     if (!precio || precio <= 0) return showToast('Precio invalido', 'error');
     const nuevo: Tejido = { id: generateId(), nombre: nt.nombre.trim(), tipo: nt.tipo, precio };
     const u = [...tejidos, nuevo];
@@ -144,7 +144,7 @@ export default function ConfigScreen() {
 
   const saveEditT = async () => {
     if (!editingTejido) return;
-    const precio = parseFloat(editTejidoData.precio);
+    const precio = parseNumero(editTejidoData.precio);
     if (!editTejidoData.nombre.trim()) return showToast('Nombre requerido', 'error');
     if (!precio || precio <= 0) return showToast('Precio invalido', 'error');
     const u = tejidos.map((t) => t.id === editingTejido ? { ...t, nombre: editTejidoData.nombre.trim(), tipo: editTejidoData.tipo, precio } : t);

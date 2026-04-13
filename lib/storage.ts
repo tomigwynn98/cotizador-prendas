@@ -291,6 +291,13 @@ export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
+// --- Input helpers ---
+
+/** Normaliza input numérico: acepta coma o punto como decimal */
+export function parseNumero(val: string): number {
+  return parseFloat(val.replace(',', '.'));
+}
+
 // --- Formateo ---
 
 export function formatARS(n: number): string {
