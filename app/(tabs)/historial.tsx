@@ -86,7 +86,7 @@ export default function HistorialScreen() {
         />
       ) : (
         cotizaciones.map((c) => {
-          const resumen = c.lineas.map((l) => l.prenda.nombre).join(', ');
+          const resumen = c.lineas.map((l) => `${l.prenda.nombre} (${l.tejido.nombre})`).join(', ');
           const totalUnidades = c.lineas.reduce((s, l) => s + l.cantidad, 0);
 
           return (

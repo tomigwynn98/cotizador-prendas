@@ -52,7 +52,7 @@ export default function ResultadoScreen() {
     txt += `Costo minuto: ${formatARS(cotizacion.costoMinuto)}/min\n\n`;
     cotizacion.lineas.forEach((l, i) => {
       const u = l.tejido.tipo === 'punto' ? 'kg' : 'm';
-      txt += `*${i + 1}. ${l.prenda.nombre} + ${l.tejido.nombre}*\n`;
+      txt += `*${i + 1}. ${l.prenda.nombre}*\n`;
       txt += `  Tejido: ${l.consumo} ${u} x ${formatARS(l.tejido.precio)}/${u} = ${formatARS(l.costoTejido)}\n`;
       txt += `  Confeccion: ${l.prenda.minutos} min x ${formatARS(cotizacion.costoMinuto)}/min = ${formatARS(l.confeccion)}\n`;
       txt += `  Insumos: ${formatARS(l.insumos)}\n`;
@@ -107,9 +107,9 @@ export default function ResultadoScreen() {
               <View style={styles.cardNumWrap}>
                 <Text style={styles.cardNum}>{i + 1}</Text>
               </View>
-              <Text style={styles.cardTitle}>{l.prenda.nombre} + {l.tejido.nombre}</Text>
+              <Text style={styles.cardTitle}>{l.prenda.nombre}</Text>
             </View>
-            <Row icon="texture" label={`Tejido (${l.consumo} ${u} x ${formatARS(l.tejido.precio)}/${u})`} value={formatARS(l.costoTejido)} />
+            <Row icon="texture" label={`${l.tejido.nombre} (${l.consumo} ${u} x ${formatARS(l.tejido.precio)}/${u})`} value={formatARS(l.costoTejido)} />
             <Row icon="precision-manufacturing" label={`Confeccion (${l.prenda.minutos} min x ${formatARS(cotizacion.costoMinuto)}/min)`} value={formatARS(l.confeccion)} />
             <Row icon="category" label="Insumos" value={formatARS(l.insumos)} />
             <Divider />

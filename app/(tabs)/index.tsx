@@ -261,9 +261,9 @@ export default function CotizarScreen() {
                   <MaterialIcons name="checkroom" size={20} color={COLORS.primary} />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.lineaName}>{l._prendaNombre} + {l._tejidoNombre}</Text>
+                  <Text style={styles.lineaName}>{l._prendaNombre}</Text>
                   <Text style={styles.lineaDetail}>
-                    {l.consumo} {l._unidad}/u x {l.cantidad} u = {formatARS(l._subtotal)}
+                    {l._tejidoNombre} | {l.consumo} {l._unidad}/u x {l.cantidad} u = {formatARS(l._subtotal)}
                   </Text>
                 </View>
                 <TouchableOpacity
