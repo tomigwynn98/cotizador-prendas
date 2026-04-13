@@ -5,7 +5,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 function confirmAction(title: string, message: string, onConfirm: () => void) {
   if (Platform.OS === 'web') {
-    if (window.confirm(`${title}\n${message}`)) onConfirm();
+    try { if (window.confirm(`${title}\n${message}`)) onConfirm(); } catch { onConfirm(); }
   } else {
     const { Alert } = require('react-native');
     Alert.alert(title, message, [
@@ -21,7 +21,7 @@ import {
   getMargenDefault, formatARS, formatFecha,
 } from '@/lib/storage';
 import { COLORS, RADIUS } from '@/lib/theme';
-import { Card, PageHeader, EmptyState, Button } from '@/components/ui-kit';
+import { Card, PageHeader, EmptyState } from '@/components/ui-kit';
 import { showToast } from '@/components/toast';
 
 export default function HistorialScreen() {
@@ -40,21 +40,14 @@ export default function HistorialScreen() {
   };
 
   const handleRecotizar = async (c: Cotizacion) => {
-    // Recalcular con precios actuales
     const [prendas, tejidos, cm, md] = await Promise.all([
       getPrendas(), getTejidos(), getCostoMinuto(), getMargenDefault(),
     ]);
-
     const lineas = c.lineas.map((l) => ({
-      prendaId: l.prenda.id,
-      tejidoId: l.tejido.id,
-      consumo: l.consumo,
-      cantidad: l.cantidad,
+      prendaId: l.prenda.id, tejidoId: l.tejido.id, consumo: l.consumo, cantidad: l.cantidad,
     }));
-
     const nueva = calcularCotizacion(lineas, prendas, tejidos, cm, md, c.cliente);
     if (!nueva) return showToast('Error: prenda o tejido eliminado', 'error');
-
     await setCotizacionActual(nueva);
     await saveCotizacion(nueva);
     setCotizaciones((prev) => [nueva, ...prev]);
@@ -79,16 +72,12 @@ export default function HistorialScreen() {
       />
 
       {cotizaciones.length === 0 ? (
-        <EmptyState
-          icon="history"
-          title="Sin cotizaciones"
-          subtitle="Las cotizaciones se guardan automaticamente cuando cotizas un pedido"
-        />
+        <EmptyState icon="history" title="Sin cotizaciones"
+          subtitle="Las cotizaciones se guardan automaticamente al calcular" />
       ) : (
         cotizaciones.map((c) => {
-          const resumen = c.lineas.map((l) => `${l.prenda.nombre} (${l.tejido.nombre})`).join(', ');
-          const totalUnidades = c.lineas.reduce((s, l) => s + l.cantidad, 0);
-
+          const l = c.lineas[0];
+          if (!l) return null;
           return (
             <Card key={c.id}>
               <View style={styles.cardTop}>
@@ -111,13 +100,11 @@ export default function HistorialScreen() {
               <TouchableOpacity activeOpacity={0.7} onPress={() => handleVer(c)}>
                 <View style={styles.cardBody}>
                   <View style={styles.iconWrap}>
-                    <MaterialIcons name="receipt-long" size={22} color={COLORS.primary} />
+                    <MaterialIcons name="checkroom" size={22} color={COLORS.primary} />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.prendas} numberOfLines={1}>{resumen}</Text>
-                    <Text style={styles.detail}>
-                      {totalUnidades} unidades | {c.lineas.length} {c.lineas.length === 1 ? 'item' : 'items'}
-                    </Text>
+                    <Text style={styles.prenda}>{l.prenda.nombre}</Text>
+                    <Text style={styles.detail}>{l.tejido.nombre} | {l.cantidad} unidades</Text>
                   </View>
                   <View style={styles.priceWrap}>
                     <Text style={styles.priceLabel}>Costo total</Text>
@@ -153,8 +140,8 @@ const styles = StyleSheet.create({
   deleteBtn: { padding: 6 },
   clienteRow: {
     flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 6,
-    backgroundColor: COLORS.primaryGhost, borderRadius: RADIUS.sm, paddingHorizontal: 8, paddingVertical: 4,
-    alignSelf: 'flex-start',
+    backgroundColor: COLORS.primaryGhost, borderRadius: RADIUS.sm,
+    paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start',
   },
   clienteText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
   cardBody: { flexDirection: 'row', alignItems: 'center' },
@@ -162,7 +149,7 @@ const styles = StyleSheet.create({
     width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primaryGhost,
     justifyContent: 'center', alignItems: 'center', marginRight: 12,
   },
-  prendas: { fontSize: 15, fontWeight: '600', color: COLORS.text },
+  prenda: { fontSize: 15, fontWeight: '600', color: COLORS.text },
   detail: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
   priceWrap: { alignItems: 'flex-end' },
   priceLabel: { fontSize: 10, color: COLORS.textMuted },

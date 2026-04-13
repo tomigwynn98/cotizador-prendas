@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Animated,
   type ViewStyle,
-  type TextStyle,
 } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { COLORS, SHADOWS, RADIUS } from '@/lib/theme';
@@ -69,12 +68,14 @@ export function Button({
             name={icon as any}
             size={18}
             color={disabled ? COLORS.textMuted : v.text}
-            style={{ marginRight: 6 }}
+            style={{ marginRight: title ? 6 : 0 }}
           />
         )}
-        <Text style={[styles.buttonText, { color: disabled ? COLORS.textMuted : v.text }]}>
-          {title}
-        </Text>
+        {title ? (
+          <Text style={[styles.buttonText, { color: disabled ? COLORS.textMuted : v.text }]}>
+            {title}
+          </Text>
+        ) : null}
       </TouchableOpacity>
     </Animated.View>
   );
@@ -189,12 +190,14 @@ export function Row({
   value,
   bold,
   accent,
+  green,
   icon,
 }: {
   label: string;
   value: string;
   bold?: boolean;
   accent?: boolean;
+  green?: boolean;
   icon?: string;
 }) {
   return (
@@ -204,20 +207,20 @@ export function Row({
           <MaterialIcons
             name={icon as any}
             size={14}
-            color={accent ? COLORS.primaryLight : COLORS.textMuted}
+            color={green ? COLORS.success : accent ? COLORS.primaryLight : COLORS.textMuted}
             style={{ marginRight: 6 }}
           />
         )}
         <Text style={[styles.rowLabel, bold && styles.bold]}>{label}</Text>
       </View>
-      <Text style={[styles.rowValue, bold && styles.bold, accent && { color: COLORS.primary }]}>
+      <Text style={[styles.rowValue, bold && styles.bold, accent && { color: COLORS.primary }, green && { color: COLORS.success }]}>
         {value}
       </Text>
     </View>
   );
 }
 
-// --- Page Header ---
+// --- Page Header (light version) ---
 export function PageHeader({
   icon,
   title,
@@ -233,9 +236,9 @@ export function PageHeader({
     <View style={styles.pageHeader}>
       <View style={styles.pageHeaderLeft}>
         <View style={styles.pageHeaderIconWrap}>
-          <MaterialIcons name={icon as any} size={24} color="#fff" />
+          <MaterialIcons name={icon as any} size={22} color={COLORS.primary} />
         </View>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.pageHeaderTitle}>{title}</Text>
           {subtitle && <Text style={styles.pageHeaderSubtitle}>{subtitle}</Text>}
         </View>
@@ -295,10 +298,10 @@ const styles = StyleSheet.create({
   },
   // Chip
   chip: {
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: RADIUS.md,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: COLORS.border,
     backgroundColor: COLORS.bgWhite,
     alignItems: 'center',
@@ -368,42 +371,43 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: 13, color: COLORS.textSecondary, flex: 1 },
   rowValue: { fontSize: 13, color: COLORS.text, fontVariant: ['tabular-nums'] },
   bold: { fontWeight: '700', fontSize: 14 },
-  // Page Header
+  // Page Header — light
   pageHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: COLORS.primary,
+    backgroundColor: '#fff',
     marginHorizontal: -20,
     marginTop: -20,
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 20,
-    borderBottomLeftRadius: RADIUS.xl,
-    borderBottomRightRadius: RADIUS.xl,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
     marginBottom: 8,
   },
   pageHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
   },
   pageHeaderIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.2)',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.primaryGhost,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   pageHeaderTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#fff',
+    color: COLORS.text,
   },
   pageHeaderSubtitle: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.75)',
+    color: COLORS.textMuted,
     marginTop: 1,
   },
 });

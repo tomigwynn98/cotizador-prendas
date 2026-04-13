@@ -1,28 +1,21 @@
 import { useCallback, useEffect, useState } from 'react';
 import { StyleSheet, ScrollView, View, Text, TextInput, TouchableOpacity } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import {
-  Prenda, Tejido, LineaCotizacion, getPrendas, getTejidos, getCostoMinuto,
+  Prenda, Tejido, getPrendas, getTejidos, getCostoMinuto,
   calcularCotizacion, setCotizacionActual, saveCotizacion, formatARS,
   getConsumo, saveConsumo, getMargenDefault, precioSugerido,
 } from '@/lib/storage';
 import { COLORS, RADIUS } from '@/lib/theme';
-import { Button, Card, Chip, SectionHeader, PageHeader, EmptyState, Row, Divider } from '@/components/ui-kit';
+import { Button, Card, Chip, PageHeader, Row, Divider } from '@/components/ui-kit';
 import { showToast } from '@/components/toast';
 
 const CANTIDADES_RAPIDAS = [50, 100, 200, 500];
 
-interface LineaUI extends LineaCotizacion {
-  _key: string;
-  _prendaNombre: string;
-  _tejidoNombre: string;
-  _unidad: string;
-  _subtotal: number;
-}
-
 export default function CotizarScreen() {
+  const router = useRouter();
   const [prendas, setPrendas] = useState<Prenda[]>([]);
   const [tejidos, setTejidos] = useState<Tejido[]>([]);
   const [costoMinuto, setCostoMinuto] = useState(0);
@@ -31,10 +24,8 @@ export default function CotizarScreen() {
   const [selectedTejido, setSelectedTejido] = useState<string | null>(null);
   const [consumo, setConsumo] = useState('');
   const [cantidad, setCantidad] = useState('');
-  const [lineas, setLineas] = useState<LineaUI[]>([]);
-  const [cliente, setCliente] = useState('');
-  const [consumoAutoLoaded, setConsumoAutoLoaded] = useState(false);
   const [cantidadFromChip, setCantidadFromChip] = useState(false);
+  const [consumoAutoLoaded, setConsumoAutoLoaded] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -42,28 +33,18 @@ export default function CotizarScreen() {
         const [p, t, cm, md] = await Promise.all([
           getPrendas(), getTejidos(), getCostoMinuto(), getMargenDefault(),
         ]);
-        setPrendas(p);
-        setTejidos(t);
-        setCostoMinuto(cm);
-        setMargenDefault(md);
+        setPrendas(p); setTejidos(t); setCostoMinuto(cm); setMargenDefault(md);
       })();
     }, []),
   );
 
-  // Autocomplete consumo cuando se selecciona prenda+tejido
+  // Autocomplete consumo
   useEffect(() => {
-    if (!selectedPrenda || !selectedTejido) {
-      setConsumoAutoLoaded(false);
-      return;
-    }
+    if (!selectedPrenda || !selectedTejido) { setConsumoAutoLoaded(false); return; }
     (async () => {
       const saved = await getConsumo(selectedPrenda, selectedTejido);
-      if (saved !== null) {
-        setConsumo(saved.toString());
-        setConsumoAutoLoaded(true);
-      } else {
-        setConsumoAutoLoaded(false);
-      }
+      if (saved !== null) { setConsumo(saved.toString()); setConsumoAutoLoaded(true); }
+      else { setConsumoAutoLoaded(false); }
     })();
   }, [selectedPrenda, selectedTejido]);
 
@@ -83,213 +64,105 @@ export default function CotizarScreen() {
     const costoUnitario = costoTejido + confeccion + p.insumos;
     const subtotal = costoUnitario * q;
     const precioUnit = precioSugerido(costoUnitario, margenDefault);
-    return { costoTejido, confeccion, insumos: p.insumos, costoUnitario, subtotal, precioUnit, precioTotal: precioUnit * q };
+    return { costoTejido, confeccion, insumos: p.insumos, costoUnitario, subtotal, precioUnit, precioTotal: precioUnit * q, tejidoNombre: t.nombre };
   })();
 
-  const handleSelectPrenda = (id: string) => {
-    setSelectedPrenda(id);
-    setConsumo('');
-  };
-
-  const handleSelectTejido = (id: string) => {
-    setSelectedTejido(id);
-    setConsumo('');
-  };
-
-  const handleCantidadRapida = (q: number) => {
-    setCantidad(q.toString());
-    setCantidadFromChip(true);
-  };
-
-  const handleAgregar = async () => {
+  const handleCalcSave = async () => {
     if (!selectedPrenda || !selectedTejido) return showToast('Selecciona prenda y tejido', 'error');
     const c = parseFloat(consumo), q = parseInt(cantidad, 10);
     if (!c || c <= 0) return showToast('Consumo invalido', 'error');
     if (!q || q <= 0) return showToast('Cantidad invalida', 'error');
 
-    // Guardar consumo para próxima vez
     await saveConsumo(selectedPrenda, selectedTejido, c);
 
-    const p = prendas.find((x) => x.id === selectedPrenda)!;
-    const t = tejidos.find((x) => x.id === selectedTejido)!;
-    const subtotal = (c * t.precio + p.minutos * costoMinuto + p.insumos) * q;
-
-    setLineas([...lineas, {
-      _key: Date.now().toString(), prendaId: selectedPrenda, tejidoId: selectedTejido,
-      consumo: c, cantidad: q, _prendaNombre: p.nombre, _tejidoNombre: t.nombre,
-      _unidad: t.tipo === 'punto' ? 'kg' : 'm', _subtotal: subtotal,
-    }]);
-    setConsumo('');
-    setCantidad('');
-    setCantidadFromChip(false);
-    setSelectedPrenda(null);
-    setSelectedTejido(null);
-    showToast(`${p.nombre} + ${t.nombre} agregado`);
-  };
-
-  const handleCotizar = async () => {
-    if (lineas.length === 0) return showToast('Agrega al menos una prenda', 'error');
-    const cot = calcularCotizacion(lineas, prendas, tejidos, costoMinuto, margenDefault, cliente.trim() || undefined);
+    const cot = calcularCotizacion(
+      [{ prendaId: selectedPrenda, tejidoId: selectedTejido, consumo: c, cantidad: q }],
+      prendas, tejidos, costoMinuto, margenDefault,
+    );
     if (!cot) return showToast('Error al calcular', 'error');
     await setCotizacionActual(cot);
     await saveCotizacion(cot);
-    showToast('Cotizacion guardada en historial');
+    router.navigate('/resultado');
   };
-
-  const totalPedido = lineas.reduce((s, l) => s + l._subtotal, 0);
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <PageHeader
-        icon="calculate"
-        title="Cotizar"
-        subtitle={lineas.length > 0 ? `${lineas.length} items en el pedido` : 'Cotiza en segundos'}
-      />
+      <PageHeader icon="calculate" title="Cotizar" subtitle="Selecciona, configura y calcula" />
 
-      {/* Cliente opcional */}
-      <Card style={{ marginBottom: 8 }}>
-        <View style={styles.clienteRow}>
-          <MaterialIcons name="person" size={18} color={COLORS.primaryLight} />
-          <TextInput
-            style={styles.clienteInput}
-            placeholder="Cliente (opcional)"
-            placeholderTextColor={COLORS.textMuted}
-            value={cliente}
-            onChangeText={setCliente}
-          />
-        </View>
-      </Card>
-
-      {/* Form principal */}
       <Card>
         {/* Prenda */}
-        <Text style={styles.fieldLabel}>
-          <MaterialIcons name="checkroom" size={14} color={COLORS.primaryLight} /> Prenda
-        </Text>
+        <Text style={styles.label}>Prenda</Text>
         <View style={styles.chipsRow}>
           {prendas.map((p) => (
             <Chip key={p.id} label={p.nombre} selected={selectedPrenda === p.id}
-              onPress={() => handleSelectPrenda(p.id)} />
+              onPress={() => { setSelectedPrenda(p.id); setConsumo(''); }} />
           ))}
         </View>
-        {prendas.length === 0 && (
-          <Text style={styles.hint}>Configura prendas en la tab Config</Text>
-        )}
+        {prendas.length === 0 && <Text style={styles.hint}>Configura prendas en Config</Text>}
 
         {/* Tejido */}
-        <Text style={[styles.fieldLabel, { marginTop: 14 }]}>
-          <MaterialIcons name="texture" size={14} color={COLORS.primaryLight} /> Tejido
-        </Text>
+        <Text style={[styles.label, { marginTop: 12 }]}>Tejido</Text>
         <View style={styles.chipsRow}>
           {tejidos.map((t) => (
             <Chip key={t.id} label={t.nombre} sublabel={t.tipo === 'punto' ? 'Punto' : 'Plano'}
-              selected={selectedTejido === t.id} onPress={() => handleSelectTejido(t.id)} />
+              selected={selectedTejido === t.id}
+              onPress={() => { setSelectedTejido(t.id); setConsumo(''); }} />
           ))}
         </View>
 
-        {/* Consumo */}
-        <Text style={[styles.fieldLabel, { marginTop: 14 }]}>
-          <MaterialIcons name="straighten" size={14} color={COLORS.primaryLight} /> Consumo ({unidad})
-          {consumoAutoLoaded && (
-            <Text style={styles.autoTag}> (memorizado)</Text>
-          )}
-        </Text>
-        <TextInput style={[styles.input, consumoAutoLoaded && styles.inputAuto]}
-          keyboardType="decimal-pad" placeholder={`Ej: 0.35`}
-          placeholderTextColor={COLORS.textMuted} value={consumo} onChangeText={(v) => { setConsumo(v); setConsumoAutoLoaded(false); }} />
-
-        {/* Cantidad - botones rápidos */}
-        <Text style={[styles.fieldLabel, { marginTop: 14 }]}>
-          <MaterialIcons name="inventory" size={14} color={COLORS.primaryLight} /> Cantidad
-        </Text>
-        <View style={styles.cantidadRow}>
-          {CANTIDADES_RAPIDAS.map((q) => (
-            <TouchableOpacity
-              key={q}
-              style={[styles.cantChip, cantidadFromChip && cantidad === q.toString() && styles.cantChipSelected]}
-              onPress={() => handleCantidadRapida(q)}
-            >
-              <Text style={[styles.cantChipText, cantidadFromChip && cantidad === q.toString() && styles.cantChipTextSel]}>{q}</Text>
-            </TouchableOpacity>
-          ))}
-          <TextInput style={[styles.input, styles.cantInput]}
-            keyboardType="number-pad" placeholder="Otra"
-            placeholderTextColor={COLORS.textMuted}
-            value={cantidadFromChip ? '' : cantidad}
-            onChangeText={(v) => { setCantidad(v); setCantidadFromChip(false); }} />
+        {/* Consumo + Cantidad en misma fila */}
+        <View style={styles.inputsRow}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.label}>
+              Consumo ({unidad})
+              {consumoAutoLoaded && <Text style={styles.autoTag}> (memo)</Text>}
+            </Text>
+            <TextInput style={[styles.input, consumoAutoLoaded && styles.inputAuto]}
+              keyboardType="decimal-pad" placeholder="0.35"
+              placeholderTextColor={COLORS.textMuted} value={consumo}
+              onChangeText={(v) => { setConsumo(v); setConsumoAutoLoaded(false); }} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.label}>Cantidad</Text>
+            <View style={styles.cantRow}>
+              {CANTIDADES_RAPIDAS.map((q) => (
+                <TouchableOpacity key={q}
+                  style={[styles.cantMini, cantidadFromChip && cantidad === q.toString() && styles.cantMiniSel]}
+                  onPress={() => { setCantidad(q.toString()); setCantidadFromChip(true); }}>
+                  <Text style={[styles.cantMiniText, cantidadFromChip && cantidad === q.toString() && styles.cantMiniTextSel]}>{q}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput style={styles.input} keyboardType="number-pad" placeholder="Otra cant."
+              placeholderTextColor={COLORS.textMuted} value={cantidadFromChip ? '' : cantidad}
+              onChangeText={(v) => { setCantidad(v); setCantidadFromChip(false); }} />
+          </View>
         </View>
 
         {/* Resultado en vivo */}
         {liveCalc && (
           <View style={styles.liveResult}>
-            <View style={styles.liveHeader}>
-              <MaterialIcons name="flash-on" size={16} color={COLORS.primary} />
-              <Text style={styles.liveTitle}>Resultado instantaneo</Text>
-            </View>
-            <Row icon="texture" label="Tejido" value={formatARS(liveCalc.costoTejido)} />
+            <Row icon="texture" label={`${liveCalc.tejidoNombre}`} value={formatARS(liveCalc.costoTejido)} />
             <Row icon="precision-manufacturing" label="Confeccion" value={formatARS(liveCalc.confeccion)} />
             <Row icon="category" label="Insumos" value={formatARS(liveCalc.insumos)} />
             <Divider />
             <Row icon="functions" label="Costo unitario" value={formatARS(liveCalc.costoUnitario)} bold />
-            <Row icon="inventory" label={`Subtotal (x${cantidad})`} value={formatARS(liveCalc.subtotal)} bold />
             <Divider />
-            <View style={styles.precioRow}>
-              <MaterialIcons name="sell" size={16} color={COLORS.primary} />
-              <Text style={styles.precioLabel}>Precio de venta ({margenDefault}%)</Text>
-              <Text style={styles.precioValue}>{formatARS(liveCalc.precioUnit)}/u</Text>
+            <View style={styles.precioVentaRow}>
+              <Text style={styles.precioVentaLabel}>Precio de venta/u ({margenDefault}%)</Text>
+              <Text style={styles.precioVentaValue}>{formatARS(liveCalc.precioUnit)}</Text>
             </View>
-            <View style={[styles.precioRow, styles.precioTotal]}>
-              <MaterialIcons name="star" size={16} color="#fff" />
-              <Text style={styles.precioTotalLabel}>TOTAL</Text>
-              <Text style={styles.precioTotalValue}>{formatARS(liveCalc.precioTotal)}</Text>
+            <View style={styles.totalRow}>
+              <Text style={styles.totalLabel}>TOTAL ({cantidad} u)</Text>
+              <Text style={styles.totalValue}>{formatARS(liveCalc.precioTotal)}</Text>
             </View>
           </View>
         )}
 
-        <Button title="+ Agregar al pedido" icon="add" variant="dashed" onPress={handleAgregar}
-          style={{ marginTop: 12 }} />
+        {/* Botón Calcular */}
+        <Button title="Calcular" icon="calculate" onPress={handleCalcSave}
+          disabled={!liveCalc} style={{ marginTop: 14 }} />
       </Card>
-
-      {/* Líneas del pedido */}
-      {lineas.length > 0 && (
-        <>
-          <SectionHeader icon="shopping-cart" title="Pedido" subtitle={`${lineas.length} items`} />
-          {lineas.map((l) => (
-            <Card key={l._key} style={{ marginBottom: 6 }}>
-              <View style={styles.lineaRow}>
-                <View style={styles.lineaIconWrap}>
-                  <MaterialIcons name="checkroom" size={20} color={COLORS.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.lineaName}>{l._prendaNombre}</Text>
-                  <Text style={styles.lineaDetail}>
-                    {l._tejidoNombre} | {l.consumo} {l._unidad}/u x {l.cantidad} u = {formatARS(l._subtotal)}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => setLineas(lineas.filter((x) => x._key !== l._key))}
-                  style={styles.removeBtn}
-                >
-                  <MaterialIcons name="close" size={14} color={COLORS.danger} />
-                </TouchableOpacity>
-              </View>
-            </Card>
-          ))}
-          <Card accent>
-            <View style={styles.totalRow}>
-              <MaterialIcons name="receipt-long" size={18} color={COLORS.primary} />
-              <Text style={styles.totalLabel}>Total pedido</Text>
-              <Text style={styles.totalValue}>{formatARS(totalPedido)}</Text>
-            </View>
-          </Card>
-          <Button
-            title={`Guardar cotizacion (${lineas.length} items)`}
-            icon="save"
-            onPress={handleCotizar}
-            style={{ marginTop: 4 }}
-          />
-        </>
-      )}
     </ScrollView>
   );
 }
@@ -297,57 +170,36 @@ export default function CotizarScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.bg },
   content: { padding: 20, paddingBottom: 40 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6 },
+  label: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6, marginTop: 4 },
   autoTag: { fontSize: 11, color: COLORS.success, fontWeight: '700' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  hint: { fontSize: 12, color: COLORS.textMuted },
+  inputsRow: { flexDirection: 'row', gap: 12, marginTop: 10 },
   input: {
-    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.md,
-    padding: 11, fontSize: 15, backgroundColor: COLORS.primaryGhost, color: COLORS.text,
+    borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.sm,
+    padding: 10, fontSize: 15, backgroundColor: COLORS.primaryGhost, color: COLORS.text,
   },
   inputAuto: { borderColor: COLORS.success, backgroundColor: COLORS.successSoft },
-  hint: { fontSize: 12, color: COLORS.textMuted, marginTop: 4 },
-  // Cantidad rápida
-  cantidadRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  cantChip: {
-    paddingHorizontal: 14, paddingVertical: 10, borderRadius: RADIUS.md,
-    borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.bgWhite,
+  cantRow: { flexDirection: 'row', gap: 4, marginBottom: 6 },
+  cantMini: {
+    flex: 1, paddingVertical: 6, borderRadius: RADIUS.sm, borderWidth: 1.5,
+    borderColor: COLORS.border, backgroundColor: COLORS.bgWhite, alignItems: 'center',
   },
-  cantChipSelected: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
-  cantChipText: { fontSize: 14, fontWeight: '700', color: COLORS.text },
-  cantChipTextSel: { color: '#fff' },
-  cantInput: { flex: 1, textAlign: 'center' },
+  cantMiniSel: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
+  cantMiniText: { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary },
+  cantMiniTextSel: { color: '#fff' },
   // Live result
   liveResult: {
-    marginTop: 14, backgroundColor: COLORS.primaryGhost,
-    borderRadius: RADIUS.md, padding: 12, borderWidth: 1, borderColor: COLORS.primarySoft,
+    marginTop: 14, backgroundColor: '#f8fafc',
+    borderRadius: RADIUS.md, padding: 12, borderWidth: 1, borderColor: COLORS.border,
   },
-  liveHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  liveTitle: { fontSize: 14, fontWeight: '700', color: COLORS.primary },
-  precioRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4,
-  },
-  precioLabel: { flex: 1, fontSize: 13, fontWeight: '600', color: COLORS.primary },
-  precioValue: { fontSize: 15, fontWeight: '800', color: COLORS.primary },
-  precioTotal: {
+  precioVentaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  precioVentaLabel: { fontSize: 13, fontWeight: '600', color: COLORS.success },
+  precioVentaValue: { fontSize: 22, fontWeight: '800', color: COLORS.success },
+  totalRow: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
     backgroundColor: COLORS.primary, borderRadius: RADIUS.sm, padding: 10, marginTop: 8,
   },
-  precioTotalLabel: { flex: 1, fontSize: 13, fontWeight: '800', color: '#fff' },
-  precioTotalValue: { fontSize: 17, fontWeight: '800', color: '#fff' },
-  // Lineas
-  lineaRow: { flexDirection: 'row', alignItems: 'center' },
-  lineaIconWrap: {
-    width: 36, height: 36, borderRadius: 18, backgroundColor: COLORS.primaryGhost,
-    justifyContent: 'center', alignItems: 'center', marginRight: 10,
-  },
-  lineaName: { fontSize: 14, fontWeight: '600', color: COLORS.text },
-  lineaDetail: { fontSize: 12, color: COLORS.textSecondary, marginTop: 1 },
-  removeBtn: {
-    width: 32, height: 32, borderRadius: 16, backgroundColor: COLORS.dangerSoft,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  totalRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  totalLabel: { flex: 1, fontSize: 14, fontWeight: '600', color: COLORS.text },
-  totalValue: { fontSize: 16, fontWeight: '800', color: COLORS.primary },
-  clienteRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  clienteInput: { flex: 1, fontSize: 15, color: COLORS.text, paddingVertical: 4 },
+  totalLabel: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  totalValue: { fontSize: 17, fontWeight: '800', color: '#fff' },
 });
