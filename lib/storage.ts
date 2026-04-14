@@ -157,12 +157,24 @@ export async function saveMargenDefault(v: number): Promise<void> {
 }
 
 export async function getCotizaciones(): Promise<Cotizacion[]> {
-  if (await isAuthenticated()) { try { const s = await supa(); const d = await s.getCotizaciones(); local.set(K.COTIZACIONES, JSON.stringify(d)); return d; } catch {} }
-  return localGet(K.COTIZACIONES, []);
+  const localData = localGet<Cotizacion[]>(K.COTIZACIONES, []);
+  if (await isAuthenticated()) {
+    try {
+      const s = await supa();
+      const d = await s.getCotizaciones();
+      if (d.length > 0) { local.set(K.COTIZACIONES, JSON.stringify(d)); return d; }
+      // Si Supabase vacío pero local tiene datos, devolver local (puede ser que aún no se sincronizó)
+      if (localData.length > 0) return localData;
+      return d;
+    } catch {}
+  }
+  return localData;
 }
 export async function saveCotizacion(c: Cotizacion): Promise<void> {
   const list = localGet<Cotizacion[]>(K.COTIZACIONES, []); list.unshift(c); local.set(K.COTIZACIONES, JSON.stringify(list));
-  if (await isAuthenticated()) { try { const s = await supa(); await s.saveCotizacion(c); } catch {} }
+  if (await isAuthenticated()) {
+    try { const s = await supa(); await s.saveCotizacion(c); } catch (e) { console.error('saveCotizacion error:', e); }
+  }
 }
 export async function deleteCotizacion(id: string): Promise<void> {
   const list = localGet<Cotizacion[]>(K.COTIZACIONES, []); local.set(K.COTIZACIONES, JSON.stringify(list.filter((c) => c.id !== id)));

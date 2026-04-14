@@ -99,7 +99,8 @@ export async function getCotizaciones(): Promise<Cotizacion[]> {
 
 export async function saveCotizacion(c: Cotizacion): Promise<void> {
   const userId = await uid();
-  await supabase.from('cotizaciones').insert({ user_id: userId, data: c });
+  const { error } = await supabase.from('cotizaciones').insert({ user_id: userId, data: c });
+  if (error) console.error('saveCotizacion error:', error);
 }
 
 export async function deleteCotizacion(id: string): Promise<void> {
