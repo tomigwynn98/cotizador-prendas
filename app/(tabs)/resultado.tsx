@@ -6,11 +6,10 @@ import { useFocusEffect } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import {
-  Cotizacion, getCotizacionActual, setCotizacionActual, precioSugerido,
-  formatARS, formatFecha, getMargenDefault,
+  Cotizacion, getCotizacionActual, precioSugerido, formatARS, formatFecha, getMargenDefault,
 } from '@/lib/storage';
 import { COLORS, RADIUS } from '@/lib/theme';
-import { Card, Chip, SectionHeader, PageHeader, EmptyState, Row, Divider } from '@/components/ui-kit';
+import { Card, Chip, PageHeader, EmptyState, Row, Divider } from '@/components/ui-kit';
 import { showToast } from '@/components/toast';
 
 const MARGENES_RAPIDOS = [30, 40, 50];
@@ -41,10 +40,11 @@ export default function ResultadoScreen() {
   }
 
   const margenNum = parseFloat(margen.replace(',', '.')) || 0;
-  const l = cotizacion.lineas[0]; // Una sola prenda
+  const l = cotizacion.lineas[0];
   const u = l.tejido.tipo === 'punto' ? 'kg' : 'm';
   const precioUnit = precioSugerido(l.costoUnitario, margenNum);
   const precioTotal = precioUnit * l.cantidad;
+  const tieneImportacion = l.costoImportacion > 0 && l.paisOrigen && !l.paisOrigen.isLocal;
 
   const buildTextoWhatsApp = (): string => {
     let txt = `*Cotizacion - ${formatFecha(cotizacion.fecha)}*\n`;
@@ -52,11 +52,13 @@ export default function ResultadoScreen() {
     txt += `Costo minuto: ${formatARS(cotizacion.costoMinuto)}/min\n\n`;
     txt += `*${l.prenda.nombre}*\n`;
     txt += `  ${l.tejido.nombre}: ${l.consumo} ${u} x ${formatARS(l.tejido.precio)}/${u} = ${formatARS(l.costoTejido)}\n`;
+    if (tieneImportacion) {
+      txt += `  Importacion ${l.paisOrigen!.nombre} ${l.paisOrigen!.tasa}%: ${formatARS(l.costoImportacion)}\n`;
+    }
     txt += `  Confeccion: ${l.prenda.minutos} min x ${formatARS(cotizacion.costoMinuto)}/min = ${formatARS(l.confeccion)}\n`;
-    txt += `  Insumos: ${formatARS(l.insumos)}\n`;
+    if (l.insumosActivos) txt += `  Insumos: ${formatARS(l.insumos)}\n`;
     txt += `  *Costo unitario: ${formatARS(l.costoUnitario)}*\n\n`;
-    txt += `Cantidad: ${l.cantidad} u\n`;
-    txt += `Margen: ${margenNum}%\n`;
+    txt += `Cantidad: ${l.cantidad} u\nMargen: ${margenNum}%\n`;
     txt += `*Precio de venta: ${formatARS(precioUnit)}/u*\n`;
     txt += `*TOTAL: ${formatARS(precioTotal)}*`;
     return txt;
@@ -78,9 +80,7 @@ export default function ResultadoScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <PageHeader
-        icon="receipt-long"
-        title={l.prenda.nombre}
+      <PageHeader icon="receipt-long" title={l.prenda.nombre}
         subtitle={`${formatFecha(cotizacion.fecha)} | ${l.cantidad} unidades`}
         rightContent={
           <View style={styles.shareRow}>
@@ -95,7 +95,6 @@ export default function ResultadoScreen() {
         }
       />
 
-      {/* Cliente opcional */}
       <Card style={{ marginBottom: 8 }}>
         <View style={styles.clienteRow}>
           <MaterialIcons name="person" size={16} color={COLORS.primaryLight} />
@@ -104,18 +103,19 @@ export default function ResultadoScreen() {
         </View>
       </Card>
 
-      {/* Desglose */}
       <Card>
         <Text style={styles.cardTitle}>Desglose de costos</Text>
         <Row icon="texture" label={`${l.tejido.nombre} (${l.consumo} ${u} x ${formatARS(l.tejido.precio)}/${u})`} value={formatARS(l.costoTejido)} />
+        {tieneImportacion && (
+          <Row icon="public" label={`Importacion ${l.paisOrigen!.nombre} ${l.paisOrigen!.tasa}%`} value={formatARS(l.costoImportacion)} />
+        )}
         <Row icon="precision-manufacturing" label={`Confeccion (${l.prenda.minutos} min x ${formatARS(cotizacion.costoMinuto)}/min)`} value={formatARS(l.confeccion)} />
-        <Row icon="category" label="Insumos" value={formatARS(l.insumos)} />
+        {l.insumosActivos && <Row icon="category" label="Insumos" value={formatARS(l.insumos)} />}
         <Divider />
         <Row icon="functions" label="Costo unitario" value={formatARS(l.costoUnitario)} bold />
         <Row icon="inventory" label={`Costo total (x${l.cantidad})`} value={formatARS(l.subtotal)} bold />
       </Card>
 
-      {/* Margen */}
       <Card>
         <Text style={styles.cardTitle}>Margen de ganancia</Text>
         <View style={styles.margenRow}>
@@ -131,7 +131,6 @@ export default function ResultadoScreen() {
         </View>
       </Card>
 
-      {/* Precio de venta — destacado */}
       <Card accent>
         <View style={styles.precioSection}>
           <Text style={styles.precioLabel}>Precio de venta unitario</Text>
@@ -157,10 +156,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row', alignItems: 'center', gap: 4,
     backgroundColor: '#25d366', borderRadius: RADIUS.sm, paddingHorizontal: 10, paddingVertical: 6,
   },
-  copyBtn: {
-    backgroundColor: COLORS.primaryGhost, borderRadius: RADIUS.sm,
-    paddingHorizontal: 8, paddingVertical: 6,
-  },
+  copyBtn: { backgroundColor: COLORS.primaryGhost, borderRadius: RADIUS.sm, paddingHorizontal: 8, paddingVertical: 6 },
   shareBtnText: { color: '#fff', fontWeight: '700', fontSize: 12 },
   clienteRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   clienteInput: { flex: 1, fontSize: 14, color: COLORS.text, paddingVertical: 2 },
@@ -172,7 +168,6 @@ const styles = StyleSheet.create({
   },
   margenInput: { flex: 1, fontSize: 14, paddingVertical: 8, color: COLORS.text },
   margenPct: { fontSize: 14, color: COLORS.textMuted },
-  // Precio de venta destacado
   precioSection: { alignItems: 'center', paddingVertical: 8 },
   precioLabel: { fontSize: 13, fontWeight: '600', color: COLORS.success, marginBottom: 4 },
   precioValue: { fontSize: 32, fontWeight: '800', color: COLORS.success },

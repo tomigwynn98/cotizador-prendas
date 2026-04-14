@@ -22,9 +22,9 @@ function confirmAction(title: string, message: string, onConfirm: () => void) {
 }
 
 import {
-  Prenda, Tejido, TipoTejido, getPrendas, savePrendas, getTejidos, saveTejidos,
-  getCostoMinuto, saveCostoMinuto, getMargenDefault, saveMargenDefault, generateId, parseNumero,
-  exportarDatos, importarDatos,
+  Prenda, Tejido, TipoTejido, PaisOrigen, getPrendas, savePrendas, getTejidos, saveTejidos,
+  getPaises, savePaises, getCostoMinuto, saveCostoMinuto, getMargenDefault, saveMargenDefault,
+  generateId, parseNumero, exportarDatos, importarDatos,
 } from '@/lib/storage';
 import { COLORS, RADIUS } from '@/lib/theme';
 import { Button, Card, Chip, SectionHeader, PageHeader } from '@/components/ui-kit';
@@ -35,10 +35,17 @@ export default function ConfigScreen() {
   const [margenDefault, setMargenDefault] = useState('');
   const [prendas, setPrendas] = useState<Prenda[]>([]);
   const [tejidos, setTejidos] = useState<Tejido[]>([]);
+  const [paises, setPaises] = useState<PaisOrigen[]>([]);
 
   // Collapsible sections
   const [prendasOpen, setPrendasOpen] = useState(false);
   const [tejidosOpen, setTejidosOpen] = useState(false);
+  const [paisesOpen, setPaisesOpen] = useState(false);
+
+  // New pais form
+  const [npais, setNpais] = useState({ nombre: '', tasa: '' });
+  const [editingPais, setEditingPais] = useState<string | null>(null);
+  const [editPaisData, setEditPaisData] = useState({ nombre: '', tasa: '' });
 
   // Editing
   const [editingPrenda, setEditingPrenda] = useState<string | null>(null);
@@ -56,11 +63,12 @@ export default function ConfigScreen() {
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        const [cm, p, t, md] = await Promise.all([getCostoMinuto(), getPrendas(), getTejidos(), getMargenDefault()]);
+        const [cm, p, t, md, ps] = await Promise.all([getCostoMinuto(), getPrendas(), getTejidos(), getMargenDefault(), getPaises()]);
         setCostoMinuto(cm.toString());
         setMargenDefault(md.toString());
         setPrendas(p);
         setTejidos(t);
+        setPaises(ps);
       })();
     }, []),
   );
@@ -149,6 +157,39 @@ export default function ConfigScreen() {
     if (!precio || precio <= 0) return showToast('Precio invalido', 'error');
     const u = tejidos.map((t) => t.id === editingTejido ? { ...t, nombre: editTejidoData.nombre.trim(), tipo: editTejidoData.tipo, precio } : t);
     await saveTejidos(u); setTejidos(u); setEditingTejido(null); showToast('Tejido actualizado');
+  };
+
+  // --- Paises ---
+  const addPais = async () => {
+    if (!npais.nombre.trim()) return showToast('Ingresa un nombre', 'error');
+    const tasa = parseNumero(npais.tasa);
+    if (isNaN(tasa) || tasa < 0) return showToast('Tasa invalida', 'error');
+    const nuevo: PaisOrigen = { id: generateId(), nombre: npais.nombre.trim(), tasa };
+    const u = [...paises, nuevo];
+    await savePaises(u); setPaises(u);
+    setNpais({ nombre: '', tasa: '' });
+    showToast(`${nuevo.nombre} agregado`);
+  };
+
+  const deletePais = (id: string, nombre: string) => {
+    confirmAction('Eliminar pais', `Eliminar "${nombre}"?`, async () => {
+      const u = paises.filter((p) => p.id !== id);
+      await savePaises(u); setPaises(u); showToast(`${nombre} eliminado`);
+    });
+  };
+
+  const startEditPais = (p: PaisOrigen) => {
+    setEditingPais(p.id);
+    setEditPaisData({ nombre: p.nombre, tasa: p.tasa.toString() });
+  };
+
+  const saveEditPais = async () => {
+    if (!editingPais) return;
+    const tasa = parseNumero(editPaisData.tasa);
+    if (!editPaisData.nombre.trim()) return showToast('Nombre requerido', 'error');
+    if (isNaN(tasa) || tasa < 0) return showToast('Tasa invalida', 'error');
+    const u = paises.map((p) => p.id === editingPais ? { ...p, nombre: editPaisData.nombre.trim(), tasa } : p);
+    await savePaises(u); setPaises(u); setEditingPais(null); showToast('Pais actualizado');
   };
 
   return (
@@ -387,6 +428,85 @@ export default function ConfigScreen() {
         </View>
       )}
 
+      {/* === IMPORTACION === */}
+      <TouchableOpacity activeOpacity={0.7} onPress={() => setPaisesOpen(!paisesOpen)} style={styles.collapseHeader}>
+        <View style={styles.collapseLeft}>
+          <View style={[styles.collapseIconWrap, { backgroundColor: '#e0f2fe' }]}>
+            <MaterialIcons name="public" size={20} color="#0284c7" />
+          </View>
+          <View>
+            <Text style={styles.collapseTitle}>Importacion</Text>
+            <Text style={styles.collapseCount}>{paises.length} paises</Text>
+          </View>
+        </View>
+        <View style={[styles.collapseBadge, { backgroundColor: '#e0f2fe' }]}>
+          <Text style={[styles.collapseBadgeText, { color: '#0284c7' }]}>{paises.length}</Text>
+        </View>
+        <MaterialIcons name={paisesOpen ? 'expand-less' : 'expand-more'} size={24} color={COLORS.textMuted} />
+      </TouchableOpacity>
+
+      {paisesOpen && (
+        <View style={styles.collapseContent}>
+          {paises.map((p) =>
+            editingPais === p.id ? (
+              <Card key={p.id} style={styles.editCard}>
+                <View style={styles.editHeader}>
+                  <MaterialIcons name="edit" size={16} color={COLORS.primaryLight} />
+                  <Text style={styles.editHeaderText}>Editando {p.nombre}</Text>
+                </View>
+                <TextInput style={styles.editInput} value={editPaisData.nombre}
+                  onChangeText={(v) => setEditPaisData({ ...editPaisData, nombre: v })}
+                  placeholder="Nombre del pais" placeholderTextColor={COLORS.textMuted}
+                  editable={!p.isLocal} />
+                <TextInput style={styles.editInput} value={editPaisData.tasa}
+                  onChangeText={(v) => setEditPaisData({ ...editPaisData, tasa: v })}
+                  placeholder="Tasa %" placeholderTextColor={COLORS.textMuted}
+                  keyboardType="decimal-pad" editable={!p.isLocal} />
+                <View style={styles.editActions}>
+                  <Button title="Cancelar" variant="ghost" onPress={() => setEditingPais(null)} style={{ flex: 1 }} />
+                  {!p.isLocal && <Button title="Guardar" icon="check" onPress={saveEditPais} style={{ flex: 1 }} />}
+                </View>
+              </Card>
+            ) : (
+              <Card key={p.id}>
+                <View style={styles.itemRow}>
+                  <View style={[styles.itemIconWrap, { backgroundColor: '#e0f2fe' }]}>
+                    <MaterialIcons name={p.isLocal ? 'home' : 'public'} size={18} color="#0284c7" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.itemName}>{p.nombre}</Text>
+                    <Text style={styles.itemDetail}>Tasa: {p.tasa}%{p.isLocal ? ' (fijo)' : ''}</Text>
+                  </View>
+                  {!p.isLocal && (
+                    <>
+                      <TouchableOpacity style={styles.editTag} onPress={() => startEditPais(p)}>
+                        <MaterialIcons name="edit" size={12} color={COLORS.primaryLight} />
+                        <Text style={styles.editTagText}>Editar</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => deletePais(p.id, p.nombre)} style={styles.deleteCircle}>
+                        <MaterialIcons name="close" size={14} color={COLORS.danger} />
+                      </TouchableOpacity>
+                    </>
+                  )}
+                </View>
+              </Card>
+            ),
+          )}
+
+          <Card style={styles.addCard}>
+            <View style={styles.addHeader}>
+              <MaterialIcons name="add-circle" size={16} color={COLORS.success} />
+              <Text style={styles.addHeaderText}>Nuevo pais</Text>
+            </View>
+            <TextInput style={styles.addInput} placeholder="Nombre del pais" placeholderTextColor={COLORS.textMuted}
+              value={npais.nombre} onChangeText={(v) => setNpais({ ...npais, nombre: v })} />
+            <TextInput style={styles.addInput} placeholder="Tasa de importacion %" placeholderTextColor={COLORS.textMuted}
+              keyboardType="decimal-pad" value={npais.tasa} onChangeText={(v) => setNpais({ ...npais, tasa: v })} />
+            <Button title="+ Agregar pais" icon="add" variant="success" onPress={addPais} />
+          </Card>
+        </View>
+      )}
+
       {/* Backup */}
       <SectionHeader icon="backup" title="Backup de datos" subtitle="Exportar o importar configuracion" />
       <Card>
@@ -412,11 +532,12 @@ export default function ConfigScreen() {
                 }
                 await importarDatos(json);
                 // Reload data
-                const [cm, p, t, md] = await Promise.all([getCostoMinuto(), getPrendas(), getTejidos(), getMargenDefault()]);
+                const [cm, p, t, md, ps] = await Promise.all([getCostoMinuto(), getPrendas(), getTejidos(), getMargenDefault(), getPaises()]);
                 setCostoMinuto(cm.toString());
                 setMargenDefault(md.toString());
                 setPrendas(p);
                 setTejidos(t);
+                setPaises(ps);
                 showToast('Datos importados correctamente');
               }
             } catch { showToast('Error al importar', 'error'); }

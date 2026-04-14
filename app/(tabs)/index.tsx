@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, ScrollView, View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { StyleSheet, ScrollView, View, Text, TextInput, TouchableOpacity, Switch } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import {
-  Prenda, Tejido, getPrendas, getTejidos, getCostoMinuto,
+  Prenda, Tejido, PaisOrigen, getPrendas, getTejidos, getPaises, getCostoMinuto,
   calcularCotizacion, setCotizacionActual, saveCotizacion, formatARS,
   getConsumo, saveConsumo, getMargenDefault, precioSugerido, parseNumero,
 } from '@/lib/storage';
@@ -18,27 +18,29 @@ export default function CotizarScreen() {
   const router = useRouter();
   const [prendas, setPrendas] = useState<Prenda[]>([]);
   const [tejidos, setTejidos] = useState<Tejido[]>([]);
+  const [paises, setPaises] = useState<PaisOrigen[]>([]);
   const [costoMinuto, setCostoMinuto] = useState(0);
   const [margenDefault, setMargenDefault] = useState(40);
   const [selectedPrenda, setSelectedPrenda] = useState<string | null>(null);
   const [selectedTejido, setSelectedTejido] = useState<string | null>(null);
+  const [selectedPais, setSelectedPais] = useState<string>('local');
   const [consumo, setConsumo] = useState('');
   const [cantidad, setCantidad] = useState('');
   const [cantidadFromChip, setCantidadFromChip] = useState(false);
   const [consumoAutoLoaded, setConsumoAutoLoaded] = useState(false);
+  const [insumosActivos, setInsumosActivos] = useState(true);
 
   useFocusEffect(
     useCallback(() => {
       (async () => {
-        const [p, t, cm, md] = await Promise.all([
-          getPrendas(), getTejidos(), getCostoMinuto(), getMargenDefault(),
+        const [p, t, ps, cm, md] = await Promise.all([
+          getPrendas(), getTejidos(), getPaises(), getCostoMinuto(), getMargenDefault(),
         ]);
-        setPrendas(p); setTejidos(t); setCostoMinuto(cm); setMargenDefault(md);
+        setPrendas(p); setTejidos(t); setPaises(ps); setCostoMinuto(cm); setMargenDefault(md);
       })();
     }, []),
   );
 
-  // Autocomplete consumo
   useEffect(() => {
     if (!selectedPrenda || !selectedTejido) { setConsumoAutoLoaded(false); return; }
     (async () => {
@@ -50,8 +52,8 @@ export default function CotizarScreen() {
 
   const tejidoSel = tejidos.find((t) => t.id === selectedTejido);
   const unidad = tejidoSel?.tipo === 'plano' ? 'm' : 'kg';
+  const paisSel = paises.find((p) => p.id === selectedPais);
 
-  // Cálculo en vivo
   const liveCalc = (() => {
     if (!selectedPrenda || !selectedTejido) return null;
     const c = parseNumero(consumo), q = parseInt(cantidad, 10);
@@ -60,11 +62,15 @@ export default function CotizarScreen() {
     const t = tejidos.find((x) => x.id === selectedTejido);
     if (!p || !t) return null;
     const costoTejido = c * t.precio;
+    const tasa = paisSel && !paisSel.isLocal ? paisSel.tasa : 0;
+    const costoImportacion = costoTejido * (tasa / 100);
+    const costoTejidoFinal = costoTejido + costoImportacion;
     const confeccion = p.minutos * costoMinuto;
-    const costoUnitario = costoTejido + confeccion + p.insumos;
+    const insumos = insumosActivos ? p.insumos : 0;
+    const costoUnitario = costoTejidoFinal + confeccion + insumos;
     const subtotal = costoUnitario * q;
     const precioUnit = precioSugerido(costoUnitario, margenDefault);
-    return { costoTejido, confeccion, insumos: p.insumos, costoUnitario, subtotal, precioUnit, precioTotal: precioUnit * q, tejidoNombre: t.nombre };
+    return { costoTejido, costoImportacion, tasa, costoTejidoFinal, confeccion, insumos, costoUnitario, subtotal, precioUnit, precioTotal: precioUnit * q, tejidoNombre: t.nombre };
   })();
 
   const handleCalcSave = async () => {
@@ -72,12 +78,10 @@ export default function CotizarScreen() {
     const c = parseNumero(consumo), q = parseInt(cantidad, 10);
     if (!c || c <= 0) return showToast('Consumo invalido', 'error');
     if (!q || q <= 0) return showToast('Cantidad invalida', 'error');
-
     await saveConsumo(selectedPrenda, selectedTejido, c);
-
     const cot = calcularCotizacion(
       [{ prendaId: selectedPrenda, tejidoId: selectedTejido, consumo: c, cantidad: q }],
-      prendas, tejidos, costoMinuto, margenDefault,
+      prendas, tejidos, costoMinuto, margenDefault, undefined, paisSel, insumosActivos,
     );
     if (!cot) return showToast('Error al calcular', 'error');
     await setCotizacionActual(cot);
@@ -110,7 +114,18 @@ export default function CotizarScreen() {
           ))}
         </View>
 
-        {/* Consumo + Cantidad en misma fila */}
+        {/* País de origen */}
+        <Text style={[styles.label, { marginTop: 12 }]}>Origen del tejido</Text>
+        <View style={styles.chipsRow}>
+          {paises.map((p) => (
+            <Chip key={p.id} label={p.nombre}
+              sublabel={p.tasa > 0 ? `+${p.tasa}%` : undefined}
+              selected={selectedPais === p.id}
+              onPress={() => setSelectedPais(p.id)} />
+          ))}
+        </View>
+
+        {/* Consumo + Cantidad + Insumos toggle */}
         <View style={styles.inputsRow}>
           <View style={{ flex: 1 }}>
             <Text style={styles.label}>
@@ -139,12 +154,29 @@ export default function CotizarScreen() {
           </View>
         </View>
 
+        {/* Toggle insumos */}
+        <View style={styles.toggleRow}>
+          <MaterialIcons name="category" size={16} color={insumosActivos ? COLORS.primary : COLORS.textMuted} />
+          <Text style={[styles.toggleLabel, !insumosActivos && { color: COLORS.textMuted }]}>
+            Incluir insumos
+          </Text>
+          <Switch
+            value={insumosActivos}
+            onValueChange={setInsumosActivos}
+            trackColor={{ false: COLORS.border, true: COLORS.primarySoft }}
+            thumbColor={insumosActivos ? COLORS.primary : '#ccc'}
+          />
+        </View>
+
         {/* Resultado en vivo */}
         {liveCalc && (
           <View style={styles.liveResult}>
-            <Row icon="texture" label={`${liveCalc.tejidoNombre}`} value={formatARS(liveCalc.costoTejido)} />
+            <Row icon="texture" label={liveCalc.tejidoNombre} value={formatARS(liveCalc.costoTejido)} />
+            {liveCalc.tasa > 0 && (
+              <Row icon="public" label={`Importacion ${paisSel?.nombre} ${liveCalc.tasa}%`} value={formatARS(liveCalc.costoImportacion)} />
+            )}
             <Row icon="precision-manufacturing" label="Confeccion" value={formatARS(liveCalc.confeccion)} />
-            <Row icon="category" label="Insumos" value={formatARS(liveCalc.insumos)} />
+            {insumosActivos && <Row icon="category" label="Insumos" value={formatARS(liveCalc.insumos)} />}
             <Divider />
             <Row icon="functions" label="Costo unitario" value={formatARS(liveCalc.costoUnitario)} bold />
             <Divider />
@@ -159,7 +191,6 @@ export default function CotizarScreen() {
           </View>
         )}
 
-        {/* Botón Calcular */}
         <Button title="Calcular" icon="calculate" onPress={handleCalcSave}
           disabled={!liveCalc} style={{ marginTop: 14 }} />
       </Card>
@@ -188,7 +219,11 @@ const styles = StyleSheet.create({
   cantMiniSel: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
   cantMiniText: { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary },
   cantMiniTextSel: { color: '#fff' },
-  // Live result
+  toggleRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12,
+    paddingVertical: 8, paddingHorizontal: 4,
+  },
+  toggleLabel: { flex: 1, fontSize: 14, fontWeight: '500', color: COLORS.text },
   liveResult: {
     marginTop: 14, backgroundColor: '#f8fafc',
     borderRadius: RADIUS.md, padding: 12, borderWidth: 1, borderColor: COLORS.border,

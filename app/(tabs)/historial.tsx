@@ -17,7 +17,7 @@ function confirmAction(title: string, message: string, onConfirm: () => void) {
 
 import {
   Cotizacion, getCotizaciones, deleteCotizacion, setCotizacionActual,
-  saveCotizacion, calcularCotizacion, getPrendas, getTejidos, getCostoMinuto,
+  saveCotizacion, calcularCotizacion, getPrendas, getTejidos, getPaises, getCostoMinuto,
   getMargenDefault, formatARS, formatFecha,
 } from '@/lib/storage';
 import { COLORS, RADIUS } from '@/lib/theme';
@@ -40,13 +40,14 @@ export default function HistorialScreen() {
   };
 
   const handleRecotizar = async (c: Cotizacion) => {
-    const [prendas, tejidos, cm, md] = await Promise.all([
-      getPrendas(), getTejidos(), getCostoMinuto(), getMargenDefault(),
+    const [prendas, tejidos, paises, cm, md] = await Promise.all([
+      getPrendas(), getTejidos(), getPaises(), getCostoMinuto(), getMargenDefault(),
     ]);
-    const lineas = c.lineas.map((l) => ({
-      prendaId: l.prenda.id, tejidoId: l.tejido.id, consumo: l.consumo, cantidad: l.cantidad,
-    }));
-    const nueva = calcularCotizacion(lineas, prendas, tejidos, cm, md, c.cliente);
+    const l = c.lineas[0];
+    if (!l) return;
+    const paisOrigen = l.paisOrigen ? paises.find((p) => p.id === l.paisOrigen!.id) || l.paisOrigen : undefined;
+    const lineas = [{ prendaId: l.prenda.id, tejidoId: l.tejido.id, consumo: l.consumo, cantidad: l.cantidad }];
+    const nueva = calcularCotizacion(lineas, prendas, tejidos, cm, md, c.cliente, paisOrigen, l.insumosActivos);
     if (!nueva) return showToast('Error: prenda o tejido eliminado', 'error');
     await setCotizacionActual(nueva);
     await saveCotizacion(nueva);
@@ -65,11 +66,8 @@ export default function HistorialScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <PageHeader
-        icon="history"
-        title="Historial"
-        subtitle={cotizaciones.length > 0 ? `${cotizaciones.length} cotizaciones` : 'Tus cotizaciones'}
-      />
+      <PageHeader icon="history" title="Historial"
+        subtitle={cotizaciones.length > 0 ? `${cotizaciones.length} cotizaciones` : 'Tus cotizaciones'} />
 
       {cotizaciones.length === 0 ? (
         <EmptyState icon="history" title="Sin cotizaciones"
@@ -78,6 +76,11 @@ export default function HistorialScreen() {
         cotizaciones.map((c) => {
           const l = c.lineas[0];
           if (!l) return null;
+          const tieneImportacion = l.paisOrigen && !l.paisOrigen.isLocal;
+          const detailParts = [l.tejido.nombre];
+          if (tieneImportacion) detailParts.push(`${l.paisOrigen!.nombre} ${l.paisOrigen!.tasa}%`);
+          detailParts.push(`${l.cantidad} unidades`);
+
           return (
             <Card key={c.id}>
               <View style={styles.cardTop}>
@@ -104,7 +107,7 @@ export default function HistorialScreen() {
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.prenda}>{l.prenda.nombre}</Text>
-                    <Text style={styles.detail}>{l.tejido.nombre} | {l.cantidad} unidades</Text>
+                    <Text style={styles.detail}>{detailParts.join(' · ')}</Text>
                   </View>
                   <View style={styles.priceWrap}>
                     <Text style={styles.priceLabel}>Costo total</Text>
