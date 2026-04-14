@@ -1,31 +1,22 @@
 import { Platform } from 'react-native';
+import type { Moneda } from './currency';
 
 // --- Storage abstraction ---
 
 const storage = {
   async getItem(key: string): Promise<string | null> {
     try {
-      if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
-        return localStorage.getItem(key);
-      }
-      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-      return await AsyncStorage.getItem(key);
-    } catch (e) {
-      console.warn('storage.getItem error:', e);
-      return null;
-    }
+      if (Platform.OS === 'web' && typeof localStorage !== 'undefined') return localStorage.getItem(key);
+      const AS = (await import('@react-native-async-storage/async-storage')).default;
+      return await AS.getItem(key);
+    } catch { return null; }
   },
   async setItem(key: string, value: string): Promise<void> {
     try {
-      if (Platform.OS === 'web' && typeof localStorage !== 'undefined') {
-        localStorage.setItem(key, value);
-        return;
-      }
-      const AsyncStorage = (await import('@react-native-async-storage/async-storage')).default;
-      await AsyncStorage.setItem(key, value);
-    } catch (e) {
-      console.warn('storage.setItem error:', e);
-    }
+      if (Platform.OS === 'web' && typeof localStorage !== 'undefined') { localStorage.setItem(key, value); return; }
+      const AS = (await import('@react-native-async-storage/async-storage')).default;
+      await AS.setItem(key, value);
+    } catch {}
   },
 };
 
@@ -37,21 +28,60 @@ export interface Prenda {
   id: string;
   nombre: string;
   minutos: number;
-  insumos: number;
+  insumos?: number; // legacy, ignored in new calc
 }
 
 export interface Tejido {
   id: string;
   nombre: string;
   tipo: TipoTejido;
+  precio: number; // siempre USD/kg o USD/m
+}
+
+export interface Insumo {
+  id: string;
+  nombre: string;
   precio: number;
+  moneda: Moneda;
 }
 
 export interface PaisOrigen {
   id: string;
   nombre: string;
-  tasa: number; // porcentaje de importación
-  isLocal?: boolean; // true solo para "Local", no se puede eliminar/editar tasa
+  tasa: number;
+  isLocal?: boolean;
+}
+
+export interface InsumoSeleccionado {
+  insumo: Insumo;
+  costoUSD: number;
+}
+
+export interface LineaResultado {
+  prenda: Prenda;
+  tejido: Tejido;
+  consumo: number;
+  cantidad: number;
+  costoTejidoUSD: number;
+  costoImportacionUSD: number;
+  costoTejidoFinalUSD: number;
+  confeccionUSD: number;
+  insumosSeleccionados: InsumoSeleccionado[];
+  totalInsumosUSD: number;
+  costoUnitarioUSD: number;
+  subtotalUSD: number;
+  paisOrigen?: PaisOrigen;
+}
+
+export interface Cotizacion {
+  id: string;
+  fecha: string;
+  cliente?: string;
+  lineas: LineaResultado[];
+  costoMinutoUSD: number;
+  totalGeneralUSD: number;
+  margen: number;
+  tipoCambio: number;
 }
 
 export interface LineaCotizacion {
@@ -61,62 +91,43 @@ export interface LineaCotizacion {
   cantidad: number;
 }
 
-export interface LineaResultado {
-  prenda: Prenda;
-  tejido: Tejido;
-  consumo: number;
-  cantidad: number;
-  costoTejido: number;
-  costoImportacion: number;
-  costoTejidoFinal: number;
-  confeccion: number;
-  insumos: number;
-  costoUnitario: number;
-  subtotal: number;
-  paisOrigen?: PaisOrigen;
-  insumosActivos: boolean;
-}
-
-export interface Cotizacion {
-  id: string;
-  fecha: string;
-  cliente?: string;
-  lineas: LineaResultado[];
-  costoMinuto: number;
-  totalGeneral: number;
-  margen: number;
-  precioSugeridoTotal: number;
-}
-
 // --- Keys ---
 
 const KEYS = {
-  PRENDAS: 'prendas',
-  TEJIDOS: 'tejidos',
-  COSTO_MINUTO: 'costoMinuto',
-  COTIZACIONES: 'cotizaciones',
-  COTIZACION_ACTUAL: 'cotizacionActual',
+  PRENDAS: 'prendas', TEJIDOS: 'tejidos', INSUMOS: 'insumos_v2', PAISES: 'paises',
+  COSTO_MINUTO: 'costoMinutoUSD', MARGEN_DEFAULT: 'margenDefault',
+  COTIZACIONES: 'cotizaciones_v2', COTIZACION_ACTUAL: 'cotizacionActual_v2',
   CONSUMOS: 'consumos',
-  MARGEN_DEFAULT: 'margenDefault',
-  PAISES: 'paises',
 };
 
 // --- Defaults ---
 
-const DEFAULT_COSTO_MINUTO = 15;
+const DEFAULT_COSTO_MINUTO = 0.02; // USD/min
 
 const DEFAULT_PRENDAS: Prenda[] = [
-  { id: '1', nombre: 'Remera', minutos: 12, insumos: 150 },
-  { id: '2', nombre: 'Pantalón', minutos: 25, insumos: 300 },
-  { id: '3', nombre: 'Buzo', minutos: 20, insumos: 250 },
-  { id: '4', nombre: 'Campera', minutos: 35, insumos: 500 },
+  { id: '1', nombre: 'Remera', minutos: 12 },
+  { id: '2', nombre: 'Pantalón', minutos: 25 },
+  { id: '3', nombre: 'Buzo', minutos: 20 },
+  { id: '4', nombre: 'Campera', minutos: 35 },
 ];
 
 const DEFAULT_TEJIDOS: Tejido[] = [
-  { id: '1', nombre: 'Jersey', tipo: 'punto', precio: 5500 },
-  { id: '2', nombre: 'Interlock', tipo: 'punto', precio: 6200 },
-  { id: '3', nombre: 'Frisa', tipo: 'punto', precio: 7000 },
-  { id: '4', nombre: 'Gabardina', tipo: 'plano', precio: 4500 },
+  { id: '1', nombre: 'Jersey', tipo: 'punto', precio: 0.70 },
+  { id: '2', nombre: 'Interlock', tipo: 'punto', precio: 0.80 },
+  { id: '3', nombre: 'Frisa', tipo: 'punto', precio: 0.90 },
+  { id: '4', nombre: 'Gabardina', tipo: 'plano', precio: 0.58 },
+];
+
+const DEFAULT_INSUMOS: Insumo[] = [
+  { id: 'i1', nombre: 'Hilos recta (2000 yrd)', precio: 6778, moneda: 'GS' },
+  { id: 'i2', nombre: 'Hilos text (100 Gr)', precio: 11896, moneda: 'GS' },
+  { id: 'i3', nombre: 'Poliamida (200 mts.)', precio: 77000, moneda: 'GS' },
+  { id: 'i4', nombre: 'Ribbon (450 mts.)', precio: 65000, moneda: 'GS' },
+  { id: 'i5', nombre: 'Gomas 6 cm (25 mts.)', precio: 20250, moneda: 'GS' },
+  { id: 'i6', nombre: 'Gomas 7 mm (100 mts.)', precio: 22000, moneda: 'GS' },
+  { id: 'i7', nombre: 'Rfid', precio: 0.0516, moneda: 'USD' },
+  { id: 'i8', nombre: 'Transfer', precio: 284, moneda: 'GS' },
+  { id: 'i9', nombre: 'Etiquetas bordadas', precio: 300, moneda: 'GS' },
 ];
 
 const DEFAULT_PAISES: PaisOrigen[] = [
@@ -129,61 +140,41 @@ const DEFAULT_PAISES: PaisOrigen[] = [
 
 async function getOrDefault<T>(key: string, defaultValue: T): Promise<T> {
   const raw = await storage.getItem(key);
-  if (raw === null) {
-    await storage.setItem(key, JSON.stringify(defaultValue));
-    return defaultValue;
-  }
+  if (raw === null) { await storage.setItem(key, JSON.stringify(defaultValue)); return defaultValue; }
   return JSON.parse(raw);
 }
 
-// --- Prendas ---
+// --- CRUD ---
 export async function getPrendas(): Promise<Prenda[]> { return getOrDefault(KEYS.PRENDAS, DEFAULT_PRENDAS); }
-export async function savePrendas(prendas: Prenda[]): Promise<void> { await storage.setItem(KEYS.PRENDAS, JSON.stringify(prendas)); }
-
-// --- Tejidos ---
+export async function savePrendas(v: Prenda[]): Promise<void> { await storage.setItem(KEYS.PRENDAS, JSON.stringify(v)); }
 export async function getTejidos(): Promise<Tejido[]> { return getOrDefault(KEYS.TEJIDOS, DEFAULT_TEJIDOS); }
-export async function saveTejidos(tejidos: Tejido[]): Promise<void> { await storage.setItem(KEYS.TEJIDOS, JSON.stringify(tejidos)); }
-
-// --- Paises ---
+export async function saveTejidos(v: Tejido[]): Promise<void> { await storage.setItem(KEYS.TEJIDOS, JSON.stringify(v)); }
+export async function getInsumos(): Promise<Insumo[]> { return getOrDefault(KEYS.INSUMOS, DEFAULT_INSUMOS); }
+export async function saveInsumos(v: Insumo[]): Promise<void> { await storage.setItem(KEYS.INSUMOS, JSON.stringify(v)); }
 export async function getPaises(): Promise<PaisOrigen[]> { return getOrDefault(KEYS.PAISES, DEFAULT_PAISES); }
-export async function savePaises(paises: PaisOrigen[]): Promise<void> { await storage.setItem(KEYS.PAISES, JSON.stringify(paises)); }
-
-// --- Costo minuto ---
+export async function savePaises(v: PaisOrigen[]): Promise<void> { await storage.setItem(KEYS.PAISES, JSON.stringify(v)); }
 export async function getCostoMinuto(): Promise<number> { return getOrDefault(KEYS.COSTO_MINUTO, DEFAULT_COSTO_MINUTO); }
-export async function saveCostoMinuto(valor: number): Promise<void> { await storage.setItem(KEYS.COSTO_MINUTO, JSON.stringify(valor)); }
-
-// --- Margen default ---
+export async function saveCostoMinuto(v: number): Promise<void> { await storage.setItem(KEYS.COSTO_MINUTO, JSON.stringify(v)); }
 export async function getMargenDefault(): Promise<number> { return getOrDefault(KEYS.MARGEN_DEFAULT, 40); }
-export async function saveMargenDefault(margen: number): Promise<void> { await storage.setItem(KEYS.MARGEN_DEFAULT, JSON.stringify(margen)); }
-
-// --- Cotizaciones ---
+export async function saveMargenDefault(v: number): Promise<void> { await storage.setItem(KEYS.MARGEN_DEFAULT, JSON.stringify(v)); }
 export async function getCotizaciones(): Promise<Cotizacion[]> { return getOrDefault(KEYS.COTIZACIONES, []); }
-export async function saveCotizacion(cotizacion: Cotizacion): Promise<void> {
-  const lista = await getCotizaciones();
-  lista.unshift(cotizacion);
-  await storage.setItem(KEYS.COTIZACIONES, JSON.stringify(lista));
+export async function saveCotizacion(c: Cotizacion): Promise<void> {
+  const l = await getCotizaciones(); l.unshift(c);
+  await storage.setItem(KEYS.COTIZACIONES, JSON.stringify(l));
 }
 export async function deleteCotizacion(id: string): Promise<void> {
-  const lista = await getCotizaciones();
-  await storage.setItem(KEYS.COTIZACIONES, JSON.stringify(lista.filter((c) => c.id !== id)));
+  const l = await getCotizaciones();
+  await storage.setItem(KEYS.COTIZACIONES, JSON.stringify(l.filter((c) => c.id !== id)));
 }
-
-// --- Consumos memorizados ---
 export async function getConsumos(): Promise<Record<string, number>> { return getOrDefault(KEYS.CONSUMOS, {}); }
-export async function saveConsumo(prendaId: string, tejidoId: string, consumo: number): Promise<void> {
-  const consumos = await getConsumos();
-  consumos[`${prendaId}_${tejidoId}`] = consumo;
-  await storage.setItem(KEYS.CONSUMOS, JSON.stringify(consumos));
+export async function saveConsumo(pId: string, tId: string, c: number): Promise<void> {
+  const cs = await getConsumos(); cs[`${pId}_${tId}`] = c;
+  await storage.setItem(KEYS.CONSUMOS, JSON.stringify(cs));
 }
-export async function getConsumo(prendaId: string, tejidoId: string): Promise<number | null> {
-  const consumos = await getConsumos();
-  return consumos[`${prendaId}_${tejidoId}`] ?? null;
+export async function getConsumo(pId: string, tId: string): Promise<number | null> {
+  const cs = await getConsumos(); return cs[`${pId}_${tId}`] ?? null;
 }
-
-// --- Cotización actual ---
-export async function setCotizacionActual(cotizacion: Cotizacion): Promise<void> {
-  await storage.setItem(KEYS.COTIZACION_ACTUAL, JSON.stringify(cotizacion));
-}
+export async function setCotizacionActual(c: Cotizacion): Promise<void> { await storage.setItem(KEYS.COTIZACION_ACTUAL, JSON.stringify(c)); }
 export async function getCotizacionActual(): Promise<Cotizacion | null> {
   const raw = await storage.getItem(KEYS.COTIZACION_ACTUAL);
   return raw ? JSON.parse(raw) : null;
@@ -191,72 +182,69 @@ export async function getCotizacionActual(): Promise<Cotizacion | null> {
 
 // --- Backup ---
 export async function exportarDatos(): Promise<string> {
-  const [prendas, tejidos, paises, cm, md, cotizaciones, consumos] = await Promise.all([
-    getPrendas(), getTejidos(), getPaises(), getCostoMinuto(), getMargenDefault(), getCotizaciones(), getConsumos(),
+  const [prendas, tejidos, insumos, paises, cm, md, cotizaciones, consumos] = await Promise.all([
+    getPrendas(), getTejidos(), getInsumos(), getPaises(), getCostoMinuto(), getMargenDefault(), getCotizaciones(), getConsumos(),
   ]);
-  return JSON.stringify({ prendas, tejidos, paises, costoMinuto: cm, margenDefault: md, cotizaciones, consumos, exportDate: new Date().toISOString() }, null, 2);
+  return JSON.stringify({ prendas, tejidos, insumos, paises, costoMinuto: cm, margenDefault: md, cotizaciones, consumos, exportDate: new Date().toISOString() }, null, 2);
 }
 export async function importarDatos(json: string): Promise<void> {
-  const data = JSON.parse(json);
-  if (data.prendas) await savePrendas(data.prendas);
-  if (data.tejidos) await saveTejidos(data.tejidos);
-  if (data.paises) await savePaises(data.paises);
-  if (data.costoMinuto) await saveCostoMinuto(data.costoMinuto);
-  if (data.margenDefault) await saveMargenDefault(data.margenDefault);
-  if (data.cotizaciones) await storage.setItem(KEYS.COTIZACIONES, JSON.stringify(data.cotizaciones));
-  if (data.consumos) await storage.setItem(KEYS.CONSUMOS, JSON.stringify(data.consumos));
+  const d = JSON.parse(json);
+  if (d.prendas) await savePrendas(d.prendas);
+  if (d.tejidos) await saveTejidos(d.tejidos);
+  if (d.insumos) await saveInsumos(d.insumos);
+  if (d.paises) await savePaises(d.paises);
+  if (d.costoMinuto) await saveCostoMinuto(d.costoMinuto);
+  if (d.margenDefault) await saveMargenDefault(d.margenDefault);
+  if (d.cotizaciones) await storage.setItem(KEYS.COTIZACIONES, JSON.stringify(d.cotizaciones));
+  if (d.consumos) await storage.setItem(KEYS.CONSUMOS, JSON.stringify(d.consumos));
 }
 
-// --- Cálculo ---
+// --- Cálculo (todo interno en USD) ---
 
 export function calcularLinea(
-  prenda: Prenda,
-  tejido: Tejido,
-  consumo: number,
-  cantidad: number,
-  costoMinuto: number,
-  paisOrigen?: PaisOrigen,
-  insumosActivos: boolean = true,
+  prenda: Prenda, tejido: Tejido, consumo: number, cantidad: number,
+  costoMinutoUSD: number, tipoCambio: number,
+  paisOrigen?: PaisOrigen, insumosSeleccionadosRaw?: Insumo[],
 ): LineaResultado {
-  const costoTejido = consumo * tejido.precio;
+  const costoTejidoUSD = consumo * tejido.precio;
   const tasa = paisOrigen && !paisOrigen.isLocal ? paisOrigen.tasa : 0;
-  const costoImportacion = costoTejido * (tasa / 100);
-  const costoTejidoFinal = costoTejido + costoImportacion;
-  const confeccion = prenda.minutos * costoMinuto;
-  const insumos = insumosActivos ? prenda.insumos : 0;
-  const costoUnitario = costoTejidoFinal + confeccion + insumos;
-  const subtotal = costoUnitario * cantidad;
+  const costoImportacionUSD = costoTejidoUSD * (tasa / 100);
+  const costoTejidoFinalUSD = costoTejidoUSD + costoImportacionUSD;
+  const confeccionUSD = prenda.minutos * costoMinutoUSD;
+
+  const insumosSeleccionados: InsumoSeleccionado[] = (insumosSeleccionadosRaw || []).map((ins) => ({
+    insumo: ins,
+    costoUSD: ins.moneda === 'USD' ? ins.precio : ins.precio / tipoCambio,
+  }));
+  const totalInsumosUSD = insumosSeleccionados.reduce((s, i) => s + i.costoUSD, 0);
+
+  const costoUnitarioUSD = costoTejidoFinalUSD + confeccionUSD + totalInsumosUSD;
+  const subtotalUSD = costoUnitarioUSD * cantidad;
 
   return {
     prenda, tejido, consumo, cantidad,
-    costoTejido, costoImportacion, costoTejidoFinal,
-    confeccion, insumos, costoUnitario, subtotal,
-    paisOrigen, insumosActivos,
+    costoTejidoUSD, costoImportacionUSD, costoTejidoFinalUSD,
+    confeccionUSD, insumosSeleccionados, totalInsumosUSD,
+    costoUnitarioUSD, subtotalUSD, paisOrigen,
   };
 }
 
 export function calcularCotizacion(
-  lineas: LineaCotizacion[],
-  prendas: Prenda[],
-  tejidos: Tejido[],
-  costoMinuto: number,
-  margen: number,
-  cliente?: string,
-  paisOrigen?: PaisOrigen,
-  insumosActivos: boolean = true,
+  lineas: LineaCotizacion[], prendas: Prenda[], tejidos: Tejido[],
+  costoMinutoUSD: number, margen: number, tipoCambio: number,
+  cliente?: string, paisOrigen?: PaisOrigen, insumosSeleccionados?: Insumo[],
 ): Cotizacion | null {
   const resultados: LineaResultado[] = [];
   for (const linea of lineas) {
     const prenda = prendas.find((p) => p.id === linea.prendaId);
     const tejido = tejidos.find((t) => t.id === linea.tejidoId);
     if (!prenda || !tejido) return null;
-    resultados.push(calcularLinea(prenda, tejido, linea.consumo, linea.cantidad, costoMinuto, paisOrigen, insumosActivos));
+    resultados.push(calcularLinea(prenda, tejido, linea.consumo, linea.cantidad, costoMinutoUSD, tipoCambio, paisOrigen, insumosSeleccionados));
   }
-  const totalGeneral = resultados.reduce((sum, r) => sum + r.subtotal, 0);
-  const precioSugeridoTotal = margen >= 100 ? Infinity : totalGeneral / (1 - margen / 100);
+  const totalGeneralUSD = resultados.reduce((s, r) => s + r.subtotalUSD, 0);
   return {
     id: generateId(), fecha: new Date().toISOString(), cliente: cliente || undefined,
-    lineas: resultados, costoMinuto, totalGeneral, margen, precioSugeridoTotal,
+    lineas: resultados, costoMinutoUSD: costoMinutoUSD, totalGeneralUSD, margen, tipoCambio,
   };
 }
 
@@ -269,15 +257,10 @@ export function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
 }
 
-// --- Input helpers ---
 export function parseNumero(val: string): number {
   return parseFloat(val.replace(',', '.'));
 }
 
-// --- Formateo ---
-export function formatARS(n: number): string {
-  return n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
-}
 export function formatFecha(iso: string): string {
   const d = new Date(iso);
   return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
