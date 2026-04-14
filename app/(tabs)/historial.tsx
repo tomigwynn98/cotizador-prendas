@@ -11,7 +11,7 @@ function confirmAction(title: string, msg: string, onOk: () => void) {
 import {
   Cotizacion, getCotizaciones, deleteCotizacion, setCotizacionActual,
   saveCotizacion, calcularCotizacion, getPrendas, getTejidos, getInsumos, getPaises,
-  getCostoMinuto, getMargenDefault, formatFecha,
+  getCostoMinuto, getMargenDefault, precioSugerido, formatFecha,
 } from '@/lib/storage';
 import { Moneda, getMonedaActiva, getCachedTipoCambio, fetchTipoCambio, formatFromUSD } from '@/lib/currency';
 import { COLORS, RADIUS } from '@/lib/theme';
@@ -75,6 +75,7 @@ export default function HistorialScreen() {
         ) : cotizaciones.map((c) => {
           const l = c.lineas[0]; if (!l) return null;
           const tieneImp = l.paisOrigen && !l.paisOrigen.isLocal;
+          const pvUSD = precioSugerido(l.costoRealUSD, c.margen, l.comisionPct || 0);
           const parts = [l.tejido.nombre];
           if (tieneImp) parts.push(`${l.paisOrigen!.nombre} ${l.paisOrigen!.tasa}%`);
           if (l.comisionPct > 0) parts.push(`Com. ${l.comisionPct}%`);
@@ -107,8 +108,10 @@ export default function HistorialScreen() {
                     <Text style={styles.detail}>{parts.join(' · ')}</Text>
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={{ fontSize: 10, color: COLORS.textMuted }}>Costo total</Text>
-                    <Text style={styles.price}>{fmt(c.totalGeneralUSD)}</Text>
+                    <Text style={styles.priceLabel}>Costo/u</Text>
+                    <Text style={styles.priceCosto}>{fmt(l.costoRealUSD)}</Text>
+                    <Text style={styles.priceLabel}>Venta/u</Text>
+                    <Text style={styles.priceVenta}>{fmt(pvUSD)}</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -141,7 +144,9 @@ const styles = StyleSheet.create({
   iconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primaryGhost, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
   prenda: { fontSize: 15, fontWeight: '600', color: COLORS.text },
   detail: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  price: { fontSize: 16, fontWeight: '800', color: COLORS.primary },
+  priceLabel: { fontSize: 10, color: COLORS.textMuted },
+  priceCosto: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
+  priceVenta: { fontSize: 16, fontWeight: '800', color: COLORS.success },
   actions: { flexDirection: 'row', gap: 8, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border },
   actBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.sm, backgroundColor: COLORS.primaryGhost },
   actText: { fontSize: 12, color: COLORS.primaryLight, fontWeight: '500' },
