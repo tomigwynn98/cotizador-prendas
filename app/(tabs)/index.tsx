@@ -32,6 +32,8 @@ export default function CotizarScreen() {
   const [cantFromChip, setCantFromChip] = useState(false);
   const [consumoAuto, setConsumoAuto] = useState(false);
   const [selInsumos, setSelInsumos] = useState<Set<string>>(new Set());
+  const [comisionActiva, setComisionActiva] = useState(false);
+  const [comisionPct, setComisionPct] = useState('10');
   const [mermaActiva, setMermaActiva] = useState(false);
   const [mermaPct, setMermaPct] = useState('5');
   const [logisticaActiva, setLogisticaActiva] = useState(false);
@@ -90,15 +92,18 @@ export default function CotizarScreen() {
     const confUSD = p.minutos * costoMinuto;
     const insUSD = insumosActivos.reduce((s, i) => s + toUSD(i.precio, i.moneda, tc), 0);
     const costoUnitUSD = costoTejFinalUSD + confUSD + insUSD;
+    const comision = comisionActiva ? parseNumero(comisionPct) || 0 : 0;
+    const costoComUSD = costoUnitUSD * (comision / 100);
+    const costoPostCom = costoUnitUSD + costoComUSD;
     const merma = mermaActiva ? parseNumero(mermaPct) || 0 : 0;
-    const costoMermaUSD = costoUnitUSD * (merma / 100);
-    const costoPostMerma = costoUnitUSD + costoMermaUSD;
+    const costoMermaUSD = costoPostCom * (merma / 100);
+    const costoPostMerma = costoPostCom + costoMermaUSD;
     const logistica = logisticaActiva ? parseNumero(logisticaPct) || 0 : 0;
     const costoLogUSD = costoPostMerma * (logistica / 100);
     const costoRealUSD = costoPostMerma + costoLogUSD;
     const subtUSD = costoRealUSD * q;
     const pvUSD = precioSugerido(costoRealUSD, margenDefault);
-    return { costoTejidoUSD, costoImpUSD, tasa, confUSD, insUSD, costoUnitUSD, merma, costoMermaUSD, costoPostMerma, logistica, costoLogUSD, costoRealUSD, subtUSD, pvUSD, pvTotalUSD: pvUSD * q, tejNombre: t.nombre };
+    return { costoTejidoUSD, costoImpUSD, tasa, confUSD, insUSD, costoUnitUSD, comision, costoComUSD, merma, costoMermaUSD, logistica, costoLogUSD, costoRealUSD, subtUSD, pvUSD, pvTotalUSD: pvUSD * q, tejNombre: t.nombre };
   })();
 
   const handleCalc = async () => {
@@ -110,6 +115,7 @@ export default function CotizarScreen() {
     const cot = calcularCotizacion(
       [{ prendaId: selPrenda, tejidoId: selTejido, consumo: c, cantidad: q }],
       prendas, tejidos, costoMinuto, margenDefault, tc, undefined, paisSel, insumosActivos,
+      comisionActiva ? parseNumero(comisionPct) || 0 : 0,
       mermaActiva ? parseNumero(mermaPct) || 0 : 0,
       logisticaActiva ? parseNumero(logisticaPct) || 0 : 0,
     );
@@ -191,6 +197,22 @@ export default function CotizarScreen() {
             );
           })}
 
+          {/* Comisión toggle */}
+          <View style={styles.toggleRow}>
+            <MaterialIcons name="percent" size={16} color={comisionActiva ? '#7c3aed' : COLORS.textMuted} />
+            <Text style={[styles.toggleLabel, !comisionActiva && { color: COLORS.textMuted }]}>Comision</Text>
+            <Switch value={comisionActiva} onValueChange={setComisionActiva}
+              trackColor={{ false: COLORS.border, true: '#ede9fe' }} thumbColor={comisionActiva ? '#7c3aed' : '#ccc'} />
+          </View>
+          {comisionActiva && (
+            <View style={styles.mermaRow}>
+              <TextInput style={[styles.mermaInput, { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' }]}
+                keyboardType="decimal-pad" value={comisionPct} onChangeText={setComisionPct}
+                placeholder="10" placeholderTextColor={COLORS.textMuted} />
+              <Text style={styles.mermaPct}>%</Text>
+            </View>
+          )}
+
           {/* Merma toggle */}
           <View style={styles.toggleRow}>
             <MaterialIcons name="warning-amber" size={16} color={mermaActiva ? '#f59e0b' : COLORS.textMuted} />
@@ -231,8 +253,9 @@ export default function CotizarScreen() {
               {liveCalc.insUSD > 0 && <Row icon="category" label={`Insumos (${insumosActivos.length})`} value={fmt(liveCalc.insUSD)} />}
               <Divider />
               <Row icon="functions" label="Costo unitario" value={fmt(liveCalc.costoUnitUSD)} bold />
-              {(liveCalc.merma > 0 || liveCalc.logistica > 0) && (
+              {(liveCalc.comision > 0 || liveCalc.merma > 0 || liveCalc.logistica > 0) && (
                 <>
+                  {liveCalc.comision > 0 && <Row icon="percent" label={`Comision ${liveCalc.comision}%`} value={fmt(liveCalc.costoComUSD)} />}
                   {liveCalc.merma > 0 && <Row icon="warning-amber" label={`Merma ${liveCalc.merma}%`} value={fmt(liveCalc.costoMermaUSD)} />}
                   {liveCalc.logistica > 0 && <Row icon="local-shipping" label={`Logistica ${liveCalc.logistica}%`} value={fmt(liveCalc.costoLogUSD)} />}
                   <Row icon="functions" label="Costo real" value={fmt(liveCalc.costoRealUSD)} bold />

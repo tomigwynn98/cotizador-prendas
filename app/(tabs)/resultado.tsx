@@ -43,9 +43,10 @@ export default function ResultadoScreen() {
   const pvUSD = precioSugerido(l.costoRealUSD, margenNum);
   const pvTotalUSD = pvUSD * l.cantidad;
   const tieneImp = l.costoImportacionUSD > 0 && l.paisOrigen && !l.paisOrigen.isLocal;
+  const tieneComision = l.comisionPct > 0;
   const tieneMerma = l.mermaPct > 0;
   const tieneLogistica = l.logisticaPct > 0;
-  const tieneExtras = tieneMerma || tieneLogistica;
+  const tieneExtras = tieneComision || tieneMerma || tieneLogistica;
   const fmt = (usd: number) => formatFromUSD(usd, moneda, tc);
 
   const buildWA = (): string => {
@@ -58,6 +59,7 @@ export default function ResultadoScreen() {
     t += `  Confeccion: ${fmt(l.confeccionUSD)}\n`;
     l.insumosSeleccionados.forEach((is) => { t += `  ${is.insumo.nombre}: ${fmt(is.costoUSD)}\n`; });
     t += `  *Costo unitario: ${fmt(l.costoUnitarioUSD)}*\n`;
+    if (tieneComision) t += `  Comision ${l.comisionPct}%: ${fmt(l.costoComisionUSD)}\n`;
     if (tieneMerma) t += `  Merma ${l.mermaPct}%: ${fmt(l.costoMermaUSD)}\n`;
     if (tieneLogistica) t += `  Logistica ${l.logisticaPct}%: ${fmt(l.costoLogisticaUSD)}\n`;
     if (tieneExtras) t += `  *Costo real: ${fmt(l.costoRealUSD)}*\n`;
@@ -116,6 +118,7 @@ export default function ResultadoScreen() {
           )}
           <Divider />
           <Row icon="functions" label="Costo unitario" value={fmt(l.costoUnitarioUSD)} bold />
+          {tieneComision && <Row icon="percent" label={`Comision ${l.comisionPct}%`} value={fmt(l.costoComisionUSD)} />}
           {tieneMerma && <Row icon="warning-amber" label={`Merma ${l.mermaPct}%`} value={fmt(l.costoMermaUSD)} />}
           {tieneLogistica && <Row icon="local-shipping" label={`Logistica ${l.logisticaPct}%`} value={fmt(l.costoLogisticaUSD)} />}
           {tieneExtras && <Row icon="functions" label="Costo real" value={fmt(l.costoRealUSD)} bold />}

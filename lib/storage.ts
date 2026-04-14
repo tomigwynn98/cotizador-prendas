@@ -68,13 +68,16 @@ export interface LineaResultado {
   confeccionUSD: number;
   insumosSeleccionados: InsumoSeleccionado[];
   totalInsumosUSD: number;
-  costoUnitarioUSD: number;    // antes de merma/logistica
-  mermaPct: number;            // 0 si desactivada
+  costoUnitarioUSD: number;    // antes de extras
+  comisionPct: number;         // 0 si desactivada
+  costoComisionUSD: number;
+  costoPostComisionUSD: number;
+  mermaPct: number;
   costoMermaUSD: number;
-  costoPostMermaUSD: number;   // costoUnitario + merma
-  logisticaPct: number;        // 0 si desactivada
+  costoPostMermaUSD: number;
+  logisticaPct: number;
   costoLogisticaUSD: number;
-  costoRealUSD: number;        // final despues de merma + logistica
+  costoRealUSD: number;        // final
   subtotalUSD: number;
   paisOrigen?: PaisOrigen;
 }
@@ -211,7 +214,7 @@ export function calcularLinea(
   prenda: Prenda, tejido: Tejido, consumo: number, cantidad: number,
   costoMinutoUSD: number, tipoCambio: number,
   paisOrigen?: PaisOrigen, insumosSeleccionadosRaw?: Insumo[],
-  mermaPct: number = 0, logisticaPct: number = 0,
+  comisionPct: number = 0, mermaPct: number = 0, logisticaPct: number = 0,
 ): LineaResultado {
   const costoTejidoUSD = consumo * tejido.precio;
   const tasa = paisOrigen && !paisOrigen.isLocal ? paisOrigen.tasa : 0;
@@ -226,8 +229,13 @@ export function calcularLinea(
   const totalInsumosUSD = insumosSeleccionados.reduce((s, i) => s + i.costoUSD, 0);
 
   const costoUnitarioUSD = costoTejidoFinalUSD + confeccionUSD + totalInsumosUSD;
-  const costoMermaUSD = mermaPct > 0 ? costoUnitarioUSD * (mermaPct / 100) : 0;
-  const costoPostMermaUSD = costoUnitarioUSD + costoMermaUSD;
+  // 1. Comisión
+  const costoComisionUSD = comisionPct > 0 ? costoUnitarioUSD * (comisionPct / 100) : 0;
+  const costoPostComisionUSD = costoUnitarioUSD + costoComisionUSD;
+  // 2. Merma
+  const costoMermaUSD = mermaPct > 0 ? costoPostComisionUSD * (mermaPct / 100) : 0;
+  const costoPostMermaUSD = costoPostComisionUSD + costoMermaUSD;
+  // 3. Logística
   const costoLogisticaUSD = logisticaPct > 0 ? costoPostMermaUSD * (logisticaPct / 100) : 0;
   const costoRealUSD = costoPostMermaUSD + costoLogisticaUSD;
   const subtotalUSD = costoRealUSD * cantidad;
@@ -236,6 +244,7 @@ export function calcularLinea(
     prenda, tejido, consumo, cantidad,
     costoTejidoUSD, costoImportacionUSD, costoTejidoFinalUSD,
     confeccionUSD, insumosSeleccionados, totalInsumosUSD,
+    comisionPct, costoComisionUSD, costoPostComisionUSD,
     mermaPct, costoMermaUSD, costoPostMermaUSD,
     logisticaPct, costoLogisticaUSD, costoRealUSD,
     costoUnitarioUSD, subtotalUSD, paisOrigen,
@@ -246,14 +255,14 @@ export function calcularCotizacion(
   lineas: LineaCotizacion[], prendas: Prenda[], tejidos: Tejido[],
   costoMinutoUSD: number, margen: number, tipoCambio: number,
   cliente?: string, paisOrigen?: PaisOrigen, insumosSeleccionados?: Insumo[],
-  mermaPct: number = 0, logisticaPct: number = 0,
+  comisionPct: number = 0, mermaPct: number = 0, logisticaPct: number = 0,
 ): Cotizacion | null {
   const resultados: LineaResultado[] = [];
   for (const linea of lineas) {
     const prenda = prendas.find((p) => p.id === linea.prendaId);
     const tejido = tejidos.find((t) => t.id === linea.tejidoId);
     if (!prenda || !tejido) return null;
-    resultados.push(calcularLinea(prenda, tejido, linea.consumo, linea.cantidad, costoMinutoUSD, tipoCambio, paisOrigen, insumosSeleccionados, mermaPct, logisticaPct));
+    resultados.push(calcularLinea(prenda, tejido, linea.consumo, linea.cantidad, costoMinutoUSD, tipoCambio, paisOrigen, insumosSeleccionados, comisionPct, mermaPct, logisticaPct));
   }
   const totalGeneralUSD = resultados.reduce((s, r) => s + r.subtotalUSD, 0);
   return {
