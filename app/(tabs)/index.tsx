@@ -34,6 +34,8 @@ export default function CotizarScreen() {
   const [selInsumos, setSelInsumos] = useState<Set<string>>(new Set());
   const [mermaActiva, setMermaActiva] = useState(false);
   const [mermaPct, setMermaPct] = useState('5');
+  const [logisticaActiva, setLogisticaActiva] = useState(false);
+  const [logisticaPct, setLogisticaPct] = useState('3');
   const [moneda, setMoneda] = useState<Moneda>(getMonedaActiva());
   const [tc, setTc] = useState(getCachedTipoCambio());
 
@@ -90,10 +92,13 @@ export default function CotizarScreen() {
     const costoUnitUSD = costoTejFinalUSD + confUSD + insUSD;
     const merma = mermaActiva ? parseNumero(mermaPct) || 0 : 0;
     const costoMermaUSD = costoUnitUSD * (merma / 100);
-    const costoRealUSD = costoUnitUSD + costoMermaUSD;
+    const costoPostMerma = costoUnitUSD + costoMermaUSD;
+    const logistica = logisticaActiva ? parseNumero(logisticaPct) || 0 : 0;
+    const costoLogUSD = costoPostMerma * (logistica / 100);
+    const costoRealUSD = costoPostMerma + costoLogUSD;
     const subtUSD = costoRealUSD * q;
     const pvUSD = precioSugerido(costoRealUSD, margenDefault);
-    return { costoTejidoUSD, costoImpUSD, tasa, confUSD, insUSD, costoUnitUSD, merma, costoMermaUSD, costoRealUSD, subtUSD, pvUSD, pvTotalUSD: pvUSD * q, tejNombre: t.nombre };
+    return { costoTejidoUSD, costoImpUSD, tasa, confUSD, insUSD, costoUnitUSD, merma, costoMermaUSD, costoPostMerma, logistica, costoLogUSD, costoRealUSD, subtUSD, pvUSD, pvTotalUSD: pvUSD * q, tejNombre: t.nombre };
   })();
 
   const handleCalc = async () => {
@@ -106,6 +111,7 @@ export default function CotizarScreen() {
       [{ prendaId: selPrenda, tejidoId: selTejido, consumo: c, cantidad: q }],
       prendas, tejidos, costoMinuto, margenDefault, tc, undefined, paisSel, insumosActivos,
       mermaActiva ? parseNumero(mermaPct) || 0 : 0,
+      logisticaActiva ? parseNumero(logisticaPct) || 0 : 0,
     );
     if (!cot) return showToast('Error al calcular', 'error');
     await setCotizacionActual(cot);
@@ -200,6 +206,22 @@ export default function CotizarScreen() {
             </View>
           )}
 
+          {/* Logística toggle */}
+          <View style={styles.toggleRow}>
+            <MaterialIcons name="local-shipping" size={16} color={logisticaActiva ? '#0284c7' : COLORS.textMuted} />
+            <Text style={[styles.toggleLabel, !logisticaActiva && { color: COLORS.textMuted }]}>Logistica</Text>
+            <Switch value={logisticaActiva} onValueChange={setLogisticaActiva}
+              trackColor={{ false: COLORS.border, true: '#bae6fd' }} thumbColor={logisticaActiva ? '#0284c7' : '#ccc'} />
+          </View>
+          {logisticaActiva && (
+            <View style={styles.mermaRow}>
+              <TextInput style={[styles.mermaInput, { borderColor: '#0284c7', backgroundColor: '#f0f9ff' }]}
+                keyboardType="decimal-pad" value={logisticaPct} onChangeText={setLogisticaPct}
+                placeholder="3" placeholderTextColor={COLORS.textMuted} />
+              <Text style={styles.mermaPct}>%</Text>
+            </View>
+          )}
+
           {/* Live result */}
           {liveCalc && (
             <View style={styles.liveResult}>
@@ -209,9 +231,10 @@ export default function CotizarScreen() {
               {liveCalc.insUSD > 0 && <Row icon="category" label={`Insumos (${insumosActivos.length})`} value={fmt(liveCalc.insUSD)} />}
               <Divider />
               <Row icon="functions" label="Costo unitario" value={fmt(liveCalc.costoUnitUSD)} bold />
-              {liveCalc.merma > 0 && (
+              {(liveCalc.merma > 0 || liveCalc.logistica > 0) && (
                 <>
-                  <Row icon="warning-amber" label={`Merma ${liveCalc.merma}%`} value={fmt(liveCalc.costoMermaUSD)} />
+                  {liveCalc.merma > 0 && <Row icon="warning-amber" label={`Merma ${liveCalc.merma}%`} value={fmt(liveCalc.costoMermaUSD)} />}
+                  {liveCalc.logistica > 0 && <Row icon="local-shipping" label={`Logistica ${liveCalc.logistica}%`} value={fmt(liveCalc.costoLogUSD)} />}
                   <Row icon="functions" label="Costo real" value={fmt(liveCalc.costoRealUSD)} bold />
                 </>
               )}

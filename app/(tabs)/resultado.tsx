@@ -44,6 +44,8 @@ export default function ResultadoScreen() {
   const pvTotalUSD = pvUSD * l.cantidad;
   const tieneImp = l.costoImportacionUSD > 0 && l.paisOrigen && !l.paisOrigen.isLocal;
   const tieneMerma = l.mermaPct > 0;
+  const tieneLogistica = l.logisticaPct > 0;
+  const tieneExtras = tieneMerma || tieneLogistica;
   const fmt = (usd: number) => formatFromUSD(usd, moneda, tc);
 
   const buildWA = (): string => {
@@ -56,7 +58,9 @@ export default function ResultadoScreen() {
     t += `  Confeccion: ${fmt(l.confeccionUSD)}\n`;
     l.insumosSeleccionados.forEach((is) => { t += `  ${is.insumo.nombre}: ${fmt(is.costoUSD)}\n`; });
     t += `  *Costo unitario: ${fmt(l.costoUnitarioUSD)}*\n`;
-    if (tieneMerma) { t += `  Merma ${l.mermaPct}%: ${fmt(l.costoMermaUSD)}\n  *Costo real: ${fmt(l.costoRealUSD)}*\n`; }
+    if (tieneMerma) t += `  Merma ${l.mermaPct}%: ${fmt(l.costoMermaUSD)}\n`;
+    if (tieneLogistica) t += `  Logistica ${l.logisticaPct}%: ${fmt(l.costoLogisticaUSD)}\n`;
+    if (tieneExtras) t += `  *Costo real: ${fmt(l.costoRealUSD)}*\n`;
     t += `\nCantidad: ${l.cantidad} u | Margen: ${margenNum}%\n`;
     t += `*Precio de venta: ${fmt(pvUSD)}/u*\n*TOTAL: ${fmt(pvTotalUSD)}*`;
     return t;
@@ -112,12 +116,9 @@ export default function ResultadoScreen() {
           )}
           <Divider />
           <Row icon="functions" label="Costo unitario" value={fmt(l.costoUnitarioUSD)} bold />
-          {tieneMerma && (
-            <>
-              <Row icon="warning-amber" label={`Merma ${l.mermaPct}%`} value={fmt(l.costoMermaUSD)} />
-              <Row icon="functions" label="Costo real" value={fmt(l.costoRealUSD)} bold />
-            </>
-          )}
+          {tieneMerma && <Row icon="warning-amber" label={`Merma ${l.mermaPct}%`} value={fmt(l.costoMermaUSD)} />}
+          {tieneLogistica && <Row icon="local-shipping" label={`Logistica ${l.logisticaPct}%`} value={fmt(l.costoLogisticaUSD)} />}
+          {tieneExtras && <Row icon="functions" label="Costo real" value={fmt(l.costoRealUSD)} bold />}
           <Row icon="inventory" label={`Costo total (×${l.cantidad})`} value={fmt(l.subtotalUSD)} bold />
         </Card>
 

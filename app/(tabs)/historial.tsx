@@ -46,7 +46,7 @@ export default function HistorialScreen() {
     const insAct = l.insumosSeleccionados.map((is) => insumos.find((i) => i.id === is.insumo.id) || is.insumo);
     const nueva = calcularCotizacion(
       [{ prendaId: l.prenda.id, tejidoId: l.tejido.id, consumo: l.consumo, cantidad: l.cantidad }],
-      prendas, tejidos, cm, md, rate, c.cliente, pais, insAct, l.mermaPct || 0,
+      prendas, tejidos, cm, md, rate, c.cliente, pais, insAct, l.mermaPct || 0, l.logisticaPct || 0,
     );
     if (!nueva) return showToast('Error: prenda o tejido eliminado', 'error');
     await setCotizacionActual(nueva); await saveCotizacion(nueva);
@@ -78,6 +78,7 @@ export default function HistorialScreen() {
           const parts = [l.tejido.nombre];
           if (tieneImp) parts.push(`${l.paisOrigen!.nombre} ${l.paisOrigen!.tasa}%`);
           if (l.mermaPct > 0) parts.push(`Merma ${l.mermaPct}%`);
+          if (l.logisticaPct > 0) parts.push(`Log. ${l.logisticaPct}%`);
           parts.push(`${l.cantidad} u`);
 
           return (
