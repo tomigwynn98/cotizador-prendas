@@ -68,16 +68,14 @@ export interface LineaResultado {
   confeccionUSD: number;
   insumosSeleccionados: InsumoSeleccionado[];
   totalInsumosUSD: number;
-  costoUnitarioUSD: number;    // antes de extras
-  comisionPct: number;         // 0 si desactivada
-  costoComisionUSD: number;
-  costoPostComisionUSD: number;
+  costoUnitarioUSD: number;    // antes de merma/logistica
   mermaPct: number;
   costoMermaUSD: number;
   costoPostMermaUSD: number;
   logisticaPct: number;
   costoLogisticaUSD: number;
-  costoRealUSD: number;        // final
+  costoRealUSD: number;        // costo final (base para precio venta)
+  comisionPct: number;         // se aplica en el denominador, no en el costo
   subtotalUSD: number;
   paisOrigen?: PaisOrigen;
 }
@@ -229,24 +227,21 @@ export function calcularLinea(
   const totalInsumosUSD = insumosSeleccionados.reduce((s, i) => s + i.costoUSD, 0);
 
   const costoUnitarioUSD = costoTejidoFinalUSD + confeccionUSD + totalInsumosUSD;
-  // 1. Comisión
-  const costoComisionUSD = comisionPct > 0 ? costoUnitarioUSD * (comisionPct / 100) : 0;
-  const costoPostComisionUSD = costoUnitarioUSD + costoComisionUSD;
-  // 2. Merma
-  const costoMermaUSD = mermaPct > 0 ? costoPostComisionUSD * (mermaPct / 100) : 0;
-  const costoPostMermaUSD = costoPostComisionUSD + costoMermaUSD;
-  // 3. Logística
+  // 1. Merma (sobre costo unitario)
+  const costoMermaUSD = mermaPct > 0 ? costoUnitarioUSD * (mermaPct / 100) : 0;
+  const costoPostMermaUSD = costoUnitarioUSD + costoMermaUSD;
+  // 2. Logística (sobre post-merma)
   const costoLogisticaUSD = logisticaPct > 0 ? costoPostMermaUSD * (logisticaPct / 100) : 0;
   const costoRealUSD = costoPostMermaUSD + costoLogisticaUSD;
+  // Comisión NO se suma al costo — va en el denominador del precio venta
   const subtotalUSD = costoRealUSD * cantidad;
 
   return {
     prenda, tejido, consumo, cantidad,
     costoTejidoUSD, costoImportacionUSD, costoTejidoFinalUSD,
     confeccionUSD, insumosSeleccionados, totalInsumosUSD,
-    comisionPct, costoComisionUSD, costoPostComisionUSD,
     mermaPct, costoMermaUSD, costoPostMermaUSD,
-    logisticaPct, costoLogisticaUSD, costoRealUSD,
+    logisticaPct, costoLogisticaUSD, costoRealUSD, comisionPct,
     costoUnitarioUSD, subtotalUSD, paisOrigen,
   };
 }
@@ -271,9 +266,10 @@ export function calcularCotizacion(
   };
 }
 
-export function precioSugerido(costoUnitario: number, margen: number): number {
-  if (margen >= 100) return Infinity;
-  return costoUnitario / (1 - margen / 100);
+export function precioSugerido(costo: number, margen: number, comision: number = 0): number {
+  const denominador = 1 - margen / 100 - comision / 100;
+  if (denominador <= 0) return Infinity;
+  return costo / denominador;
 }
 
 export function generateId(): string {

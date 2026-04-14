@@ -92,18 +92,18 @@ export default function CotizarScreen() {
     const confUSD = p.minutos * costoMinuto;
     const insUSD = insumosActivos.reduce((s, i) => s + toUSD(i.precio, i.moneda, tc), 0);
     const costoUnitUSD = costoTejFinalUSD + confUSD + insUSD;
-    const comision = comisionActiva ? parseNumero(comisionPct) || 0 : 0;
-    const costoComUSD = costoUnitUSD * (comision / 100);
-    const costoPostCom = costoUnitUSD + costoComUSD;
+    // Merma y logística sobre el costo
     const merma = mermaActiva ? parseNumero(mermaPct) || 0 : 0;
-    const costoMermaUSD = costoPostCom * (merma / 100);
-    const costoPostMerma = costoPostCom + costoMermaUSD;
+    const costoMermaUSD = costoUnitUSD * (merma / 100);
+    const costoPostMerma = costoUnitUSD + costoMermaUSD;
     const logistica = logisticaActiva ? parseNumero(logisticaPct) || 0 : 0;
     const costoLogUSD = costoPostMerma * (logistica / 100);
     const costoRealUSD = costoPostMerma + costoLogUSD;
+    // Comisión va en el denominador del precio, no en el costo
+    const comision = comisionActiva ? parseNumero(comisionPct) || 0 : 0;
     const subtUSD = costoRealUSD * q;
-    const pvUSD = precioSugerido(costoRealUSD, margenDefault);
-    return { costoTejidoUSD, costoImpUSD, tasa, confUSD, insUSD, costoUnitUSD, comision, costoComUSD, merma, costoMermaUSD, logistica, costoLogUSD, costoRealUSD, subtUSD, pvUSD, pvTotalUSD: pvUSD * q, tejNombre: t.nombre };
+    const pvUSD = precioSugerido(costoRealUSD, margenDefault, comision);
+    return { costoTejidoUSD, costoImpUSD, tasa, confUSD, insUSD, costoUnitUSD, merma, costoMermaUSD, logistica, costoLogUSD, costoRealUSD, comision, subtUSD, pvUSD, pvTotalUSD: pvUSD * q, tejNombre: t.nombre };
   })();
 
   const handleCalc = async () => {
@@ -253,9 +253,8 @@ export default function CotizarScreen() {
               {liveCalc.insUSD > 0 && <Row icon="category" label={`Insumos (${insumosActivos.length})`} value={fmt(liveCalc.insUSD)} />}
               <Divider />
               <Row icon="functions" label="Costo unitario" value={fmt(liveCalc.costoUnitUSD)} bold />
-              {(liveCalc.comision > 0 || liveCalc.merma > 0 || liveCalc.logistica > 0) && (
+              {(liveCalc.merma > 0 || liveCalc.logistica > 0) && (
                 <>
-                  {liveCalc.comision > 0 && <Row icon="percent" label={`Comision ${liveCalc.comision}%`} value={fmt(liveCalc.costoComUSD)} />}
                   {liveCalc.merma > 0 && <Row icon="warning-amber" label={`Merma ${liveCalc.merma}%`} value={fmt(liveCalc.costoMermaUSD)} />}
                   {liveCalc.logistica > 0 && <Row icon="local-shipping" label={`Logistica ${liveCalc.logistica}%`} value={fmt(liveCalc.costoLogUSD)} />}
                   <Row icon="functions" label="Costo real" value={fmt(liveCalc.costoRealUSD)} bold />
@@ -263,7 +262,9 @@ export default function CotizarScreen() {
               )}
               <Divider />
               <View style={styles.pvRow}>
-                <Text style={styles.pvLabel}>Precio de venta/u ({margenDefault}%)</Text>
+                <Text style={styles.pvLabel}>
+                  Precio de venta/u ({margenDefault}%{liveCalc.comision > 0 ? ` + Com. ${liveCalc.comision}%` : ''})
+                </Text>
                 <Text style={styles.pvValue}>{fmt(liveCalc.pvUSD)}</Text>
               </View>
               <View style={styles.totalRow}>

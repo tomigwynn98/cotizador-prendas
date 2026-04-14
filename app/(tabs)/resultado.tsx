@@ -40,13 +40,13 @@ export default function ResultadoScreen() {
   const margenNum = parseFloat(margen.replace(',', '.')) || 0;
   const l = cot.lineas[0];
   const u = l.tejido.tipo === 'punto' ? 'kg' : 'm';
-  const pvUSD = precioSugerido(l.costoRealUSD, margenNum);
+  const comisionNum = l.comisionPct || 0;
+  const pvUSD = precioSugerido(l.costoRealUSD, margenNum, comisionNum);
   const pvTotalUSD = pvUSD * l.cantidad;
   const tieneImp = l.costoImportacionUSD > 0 && l.paisOrigen && !l.paisOrigen.isLocal;
-  const tieneComision = l.comisionPct > 0;
   const tieneMerma = l.mermaPct > 0;
   const tieneLogistica = l.logisticaPct > 0;
-  const tieneExtras = tieneComision || tieneMerma || tieneLogistica;
+  const tieneExtras = tieneMerma || tieneLogistica;
   const fmt = (usd: number) => formatFromUSD(usd, moneda, tc);
 
   const buildWA = (): string => {
@@ -59,11 +59,11 @@ export default function ResultadoScreen() {
     t += `  Confeccion: ${fmt(l.confeccionUSD)}\n`;
     l.insumosSeleccionados.forEach((is) => { t += `  ${is.insumo.nombre}: ${fmt(is.costoUSD)}\n`; });
     t += `  *Costo unitario: ${fmt(l.costoUnitarioUSD)}*\n`;
-    if (tieneComision) t += `  Comision ${l.comisionPct}%: ${fmt(l.costoComisionUSD)}\n`;
     if (tieneMerma) t += `  Merma ${l.mermaPct}%: ${fmt(l.costoMermaUSD)}\n`;
     if (tieneLogistica) t += `  Logistica ${l.logisticaPct}%: ${fmt(l.costoLogisticaUSD)}\n`;
     if (tieneExtras) t += `  *Costo real: ${fmt(l.costoRealUSD)}*\n`;
-    t += `\nCantidad: ${l.cantidad} u | Margen: ${margenNum}%\n`;
+    t += `\nCantidad: ${l.cantidad} u\n`;
+    t += comisionNum > 0 ? `Margen: ${margenNum}% + Comision: ${comisionNum}% = ${margenNum + comisionNum}%\n` : `Margen: ${margenNum}%\n`;
     t += `*Precio de venta: ${fmt(pvUSD)}/u*\n*TOTAL: ${fmt(pvTotalUSD)}*`;
     return t;
   };
@@ -118,7 +118,6 @@ export default function ResultadoScreen() {
           )}
           <Divider />
           <Row icon="functions" label="Costo unitario" value={fmt(l.costoUnitarioUSD)} bold />
-          {tieneComision && <Row icon="percent" label={`Comision ${l.comisionPct}%`} value={fmt(l.costoComisionUSD)} />}
           {tieneMerma && <Row icon="warning-amber" label={`Merma ${l.mermaPct}%`} value={fmt(l.costoMermaUSD)} />}
           {tieneLogistica && <Row icon="local-shipping" label={`Logistica ${l.logisticaPct}%`} value={fmt(l.costoLogisticaUSD)} />}
           {tieneExtras && <Row icon="functions" label="Costo real" value={fmt(l.costoRealUSD)} bold />}
@@ -141,6 +140,11 @@ export default function ResultadoScreen() {
         <Card accent>
           <View style={styles.pvSection}>
             <Text style={styles.pvLabel}>Precio de venta unitario</Text>
+            {comisionNum > 0 ? (
+              <Text style={styles.pvDetail}>Margen {margenNum}% + Comision {comisionNum}% = {margenNum + comisionNum}%</Text>
+            ) : (
+              <Text style={styles.pvDetail}>Margen {margenNum}%</Text>
+            )}
             <Text style={styles.pvValue}>{fmt(pvUSD)}</Text>
           </View>
           <View style={styles.totalSection}>
@@ -171,7 +175,8 @@ const styles = StyleSheet.create({
   margenInput: { flex: 1, fontSize: 14, paddingVertical: 8, color: COLORS.text },
   margenPct: { fontSize: 14, color: COLORS.textMuted },
   pvSection: { alignItems: 'center', paddingVertical: 8 },
-  pvLabel: { fontSize: 13, fontWeight: '600', color: COLORS.success, marginBottom: 4 },
+  pvLabel: { fontSize: 13, fontWeight: '600', color: COLORS.success, marginBottom: 2 },
+  pvDetail: { fontSize: 11, color: COLORS.textMuted, marginBottom: 4 },
   pvValue: { fontSize: 32, fontWeight: '800', color: COLORS.success },
   totalSection: { backgroundColor: COLORS.primary, borderRadius: RADIUS.md, padding: 14, marginTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   totalHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
