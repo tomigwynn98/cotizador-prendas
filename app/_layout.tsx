@@ -1,28 +1,29 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View } from 'react-native';
+import { View, Platform } from 'react-native';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { AuthProvider } from '@/contexts/auth-context';
 import { Toast } from '@/components/toast';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+// Register service worker on web
+if (Platform.OS === 'web' && typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
-
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <AuthProvider>
       <View style={{ flex: 1 }}>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="login" />
+          <Stack.Screen name="(tabs)" />
         </Stack>
         <Toast />
       </View>
       <StatusBar style="auto" />
-    </ThemeProvider>
+    </AuthProvider>
   );
 }

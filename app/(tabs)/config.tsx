@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState } from 'react';
 import { StyleSheet, ScrollView, View, Text, TextInput, TouchableOpacity, Platform } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { useAuth } from '@/contexts/auth-context';
 
 function confirmAction(t: string, m: string, ok: () => void) {
   if (Platform.OS === 'web') { try { if (window.confirm(`${t}\n${m}`)) ok(); } catch { ok(); } }
@@ -21,6 +22,8 @@ import { CurrencyBar } from '@/components/currency-bar';
 import { showToast } from '@/components/toast';
 
 export default function ConfigScreen() {
+  const { user, signOut } = useAuth();
+  const router = useRouter();
   const [costoMinuto, setCostoMinuto] = useState('');
   const [margenDefault, setMargenDefault] = useState('');
   const [prendas, setPrendas] = useState<Prenda[]>([]);
@@ -237,6 +240,19 @@ export default function ConfigScreen() {
             <Button title="+ Agregar" icon="add" variant="success" onPress={addPs} />
           </Card>
         </View>}
+
+        {/* Cuenta */}
+        <SectionHeader icon="account-circle" title="Cuenta" subtitle={user?.email || ''} />
+        <Card>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <MaterialIcons name="email" size={18} color={COLORS.primaryLight} />
+            <Text style={{ fontSize: 14, color: COLORS.text, flex: 1 }}>{user?.email}</Text>
+          </View>
+          <Button title="Cerrar sesion" icon="logout" variant="danger" onPress={async () => {
+            await signOut();
+            router.replace('/login');
+          }} />
+        </Card>
 
         {/* Backup */}
         <SectionHeader icon="backup" title="Backup" subtitle="Exportar o importar datos" />
