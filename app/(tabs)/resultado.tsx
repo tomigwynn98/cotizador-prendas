@@ -40,9 +40,10 @@ export default function ResultadoScreen() {
   const margenNum = parseFloat(margen.replace(',', '.')) || 0;
   const l = cot.lineas[0];
   const u = l.tejido.tipo === 'punto' ? 'kg' : 'm';
-  const pvUSD = precioSugerido(l.costoUnitarioUSD, margenNum);
+  const pvUSD = precioSugerido(l.costoRealUSD, margenNum);
   const pvTotalUSD = pvUSD * l.cantidad;
   const tieneImp = l.costoImportacionUSD > 0 && l.paisOrigen && !l.paisOrigen.isLocal;
+  const tieneMerma = l.mermaPct > 0;
   const fmt = (usd: number) => formatFromUSD(usd, moneda, tc);
 
   const buildWA = (): string => {
@@ -54,8 +55,9 @@ export default function ResultadoScreen() {
     if (tieneImp) t += `  Importacion ${l.paisOrigen!.nombre} ${l.paisOrigen!.tasa}%: ${fmt(l.costoImportacionUSD)}\n`;
     t += `  Confeccion: ${fmt(l.confeccionUSD)}\n`;
     l.insumosSeleccionados.forEach((is) => { t += `  ${is.insumo.nombre}: ${fmt(is.costoUSD)}\n`; });
-    t += `  *Costo unitario: ${fmt(l.costoUnitarioUSD)}*\n\n`;
-    t += `Cantidad: ${l.cantidad} u | Margen: ${margenNum}%\n`;
+    t += `  *Costo unitario: ${fmt(l.costoUnitarioUSD)}*\n`;
+    if (tieneMerma) { t += `  Merma ${l.mermaPct}%: ${fmt(l.costoMermaUSD)}\n  *Costo real: ${fmt(l.costoRealUSD)}*\n`; }
+    t += `\nCantidad: ${l.cantidad} u | Margen: ${margenNum}%\n`;
     t += `*Precio de venta: ${fmt(pvUSD)}/u*\n*TOTAL: ${fmt(pvTotalUSD)}*`;
     return t;
   };
@@ -110,6 +112,12 @@ export default function ResultadoScreen() {
           )}
           <Divider />
           <Row icon="functions" label="Costo unitario" value={fmt(l.costoUnitarioUSD)} bold />
+          {tieneMerma && (
+            <>
+              <Row icon="warning-amber" label={`Merma ${l.mermaPct}%`} value={fmt(l.costoMermaUSD)} />
+              <Row icon="functions" label="Costo real" value={fmt(l.costoRealUSD)} bold />
+            </>
+          )}
           <Row icon="inventory" label={`Costo total (×${l.cantidad})`} value={fmt(l.subtotalUSD)} bold />
         </Card>
 

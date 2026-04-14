@@ -68,7 +68,10 @@ export interface LineaResultado {
   confeccionUSD: number;
   insumosSeleccionados: InsumoSeleccionado[];
   totalInsumosUSD: number;
-  costoUnitarioUSD: number;
+  costoUnitarioUSD: number;    // antes de merma
+  mermaPct: number;            // 0 si desactivada
+  costoMermaUSD: number;       // monto adicional por merma
+  costoRealUSD: number;        // costoUnitario + merma
   subtotalUSD: number;
   paisOrigen?: PaisOrigen;
 }
@@ -205,6 +208,7 @@ export function calcularLinea(
   prenda: Prenda, tejido: Tejido, consumo: number, cantidad: number,
   costoMinutoUSD: number, tipoCambio: number,
   paisOrigen?: PaisOrigen, insumosSeleccionadosRaw?: Insumo[],
+  mermaPct: number = 0,
 ): LineaResultado {
   const costoTejidoUSD = consumo * tejido.precio;
   const tasa = paisOrigen && !paisOrigen.isLocal ? paisOrigen.tasa : 0;
@@ -219,12 +223,15 @@ export function calcularLinea(
   const totalInsumosUSD = insumosSeleccionados.reduce((s, i) => s + i.costoUSD, 0);
 
   const costoUnitarioUSD = costoTejidoFinalUSD + confeccionUSD + totalInsumosUSD;
-  const subtotalUSD = costoUnitarioUSD * cantidad;
+  const costoMermaUSD = mermaPct > 0 ? costoUnitarioUSD * (mermaPct / 100) : 0;
+  const costoRealUSD = costoUnitarioUSD + costoMermaUSD;
+  const subtotalUSD = costoRealUSD * cantidad;
 
   return {
     prenda, tejido, consumo, cantidad,
     costoTejidoUSD, costoImportacionUSD, costoTejidoFinalUSD,
     confeccionUSD, insumosSeleccionados, totalInsumosUSD,
+    mermaPct, costoMermaUSD, costoRealUSD,
     costoUnitarioUSD, subtotalUSD, paisOrigen,
   };
 }
@@ -233,13 +240,14 @@ export function calcularCotizacion(
   lineas: LineaCotizacion[], prendas: Prenda[], tejidos: Tejido[],
   costoMinutoUSD: number, margen: number, tipoCambio: number,
   cliente?: string, paisOrigen?: PaisOrigen, insumosSeleccionados?: Insumo[],
+  mermaPct: number = 0,
 ): Cotizacion | null {
   const resultados: LineaResultado[] = [];
   for (const linea of lineas) {
     const prenda = prendas.find((p) => p.id === linea.prendaId);
     const tejido = tejidos.find((t) => t.id === linea.tejidoId);
     if (!prenda || !tejido) return null;
-    resultados.push(calcularLinea(prenda, tejido, linea.consumo, linea.cantidad, costoMinutoUSD, tipoCambio, paisOrigen, insumosSeleccionados));
+    resultados.push(calcularLinea(prenda, tejido, linea.consumo, linea.cantidad, costoMinutoUSD, tipoCambio, paisOrigen, insumosSeleccionados, mermaPct));
   }
   const totalGeneralUSD = resultados.reduce((s, r) => s + r.subtotalUSD, 0);
   return {

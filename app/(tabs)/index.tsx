@@ -32,6 +32,8 @@ export default function CotizarScreen() {
   const [cantFromChip, setCantFromChip] = useState(false);
   const [consumoAuto, setConsumoAuto] = useState(false);
   const [selInsumos, setSelInsumos] = useState<Set<string>>(new Set());
+  const [mermaActiva, setMermaActiva] = useState(false);
+  const [mermaPct, setMermaPct] = useState('5');
   const [moneda, setMoneda] = useState<Moneda>(getMonedaActiva());
   const [tc, setTc] = useState(getCachedTipoCambio());
 
@@ -86,9 +88,12 @@ export default function CotizarScreen() {
     const confUSD = p.minutos * costoMinuto;
     const insUSD = insumosActivos.reduce((s, i) => s + toUSD(i.precio, i.moneda, tc), 0);
     const costoUnitUSD = costoTejFinalUSD + confUSD + insUSD;
-    const subtUSD = costoUnitUSD * q;
-    const pvUSD = precioSugerido(costoUnitUSD, margenDefault);
-    return { costoTejidoUSD, costoImpUSD, tasa, confUSD, insUSD, costoUnitUSD, subtUSD, pvUSD, pvTotalUSD: pvUSD * q, tejNombre: t.nombre };
+    const merma = mermaActiva ? parseNumero(mermaPct) || 0 : 0;
+    const costoMermaUSD = costoUnitUSD * (merma / 100);
+    const costoRealUSD = costoUnitUSD + costoMermaUSD;
+    const subtUSD = costoRealUSD * q;
+    const pvUSD = precioSugerido(costoRealUSD, margenDefault);
+    return { costoTejidoUSD, costoImpUSD, tasa, confUSD, insUSD, costoUnitUSD, merma, costoMermaUSD, costoRealUSD, subtUSD, pvUSD, pvTotalUSD: pvUSD * q, tejNombre: t.nombre };
   })();
 
   const handleCalc = async () => {
@@ -100,6 +105,7 @@ export default function CotizarScreen() {
     const cot = calcularCotizacion(
       [{ prendaId: selPrenda, tejidoId: selTejido, consumo: c, cantidad: q }],
       prendas, tejidos, costoMinuto, margenDefault, tc, undefined, paisSel, insumosActivos,
+      mermaActiva ? parseNumero(mermaPct) || 0 : 0,
     );
     if (!cot) return showToast('Error al calcular', 'error');
     await setCotizacionActual(cot);
@@ -179,6 +185,21 @@ export default function CotizarScreen() {
             );
           })}
 
+          {/* Merma toggle */}
+          <View style={styles.toggleRow}>
+            <MaterialIcons name="warning-amber" size={16} color={mermaActiva ? '#f59e0b' : COLORS.textMuted} />
+            <Text style={[styles.toggleLabel, !mermaActiva && { color: COLORS.textMuted }]}>Merma</Text>
+            <Switch value={mermaActiva} onValueChange={setMermaActiva}
+              trackColor={{ false: COLORS.border, true: '#fef3c7' }} thumbColor={mermaActiva ? '#f59e0b' : '#ccc'} />
+          </View>
+          {mermaActiva && (
+            <View style={styles.mermaRow}>
+              <TextInput style={styles.mermaInput} keyboardType="decimal-pad"
+                value={mermaPct} onChangeText={setMermaPct} placeholder="5" placeholderTextColor={COLORS.textMuted} />
+              <Text style={styles.mermaPct}>%</Text>
+            </View>
+          )}
+
           {/* Live result */}
           {liveCalc && (
             <View style={styles.liveResult}>
@@ -188,6 +209,12 @@ export default function CotizarScreen() {
               {liveCalc.insUSD > 0 && <Row icon="category" label={`Insumos (${insumosActivos.length})`} value={fmt(liveCalc.insUSD)} />}
               <Divider />
               <Row icon="functions" label="Costo unitario" value={fmt(liveCalc.costoUnitUSD)} bold />
+              {liveCalc.merma > 0 && (
+                <>
+                  <Row icon="warning-amber" label={`Merma ${liveCalc.merma}%`} value={fmt(liveCalc.costoMermaUSD)} />
+                  <Row icon="functions" label="Costo real" value={fmt(liveCalc.costoRealUSD)} bold />
+                </>
+              )}
               <Divider />
               <View style={styles.pvRow}>
                 <Text style={styles.pvLabel}>Precio de venta/u ({margenDefault}%)</Text>
@@ -232,4 +259,9 @@ const styles = StyleSheet.create({
   totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: RADIUS.sm, padding: 10, marginTop: 8 },
   totalLabel: { fontSize: 13, fontWeight: '800', color: '#fff' },
   totalValue: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingVertical: 6 },
+  toggleLabel: { flex: 1, fontSize: 14, fontWeight: '500', color: COLORS.text },
+  mermaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+  mermaInput: { borderWidth: 1.5, borderColor: '#fbbf24', borderRadius: RADIUS.sm, padding: 8, fontSize: 15, backgroundColor: '#fefce8', color: COLORS.text, width: 70, textAlign: 'center' },
+  mermaPct: { fontSize: 15, color: COLORS.textMuted, fontWeight: '600' },
 });
