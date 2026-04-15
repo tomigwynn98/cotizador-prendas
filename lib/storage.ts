@@ -82,6 +82,7 @@ const DEF_INSUMOS: Insumo[] = [
   { id: 'i7', nombre: 'RFID', precio: 0.05, moneda: 'USD' },
   { id: 'i8', nombre: 'Transfer', precio: 0.04, moneda: 'USD' },
   { id: 'i9', nombre: 'Etiquetas Bordadas', precio: 0.05, moneda: 'USD' },
+  { id: 'i10', nombre: 'Cinta BB', precio: 0.012, moneda: 'USD' },
 ];
 const DEF_PAISES: PaisOrigen[] = [
   { id: 'local', nombre: 'Local', tasa: 0, isLocal: true },
