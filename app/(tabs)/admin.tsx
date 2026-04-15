@@ -7,8 +7,8 @@ import { getAllProfiles, getAllCotizaciones } from '@/lib/supabase-storage';
 import { formatFecha } from '@/lib/storage';
 import { Moneda, getMonedaActiva, getCachedTipoCambio, fetchTipoCambio, formatFromUSD } from '@/lib/currency';
 import { COLORS, RADIUS } from '@/lib/theme';
-import { Card, PageHeader } from '@/components/ui-kit';
-import { CurrencyBar } from '@/components/currency-bar';
+import { Card } from '@/components/ui-kit';
+import { TopBar } from '@/components/top-bar';
 import { useAuth } from '@/contexts/auth-context';
 
 export default function AdminScreen() {
@@ -34,9 +34,12 @@ export default function AdminScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-      <CurrencyBar onUpdate={(m, r) => { setMoneda(m); setTc(r); }} />
+      <TopBar onUpdate={(m, r) => { setMoneda(m); setTc(r); }} />
       <ScrollView contentContainerStyle={s.content}>
-        <PageHeader icon="admin-panel-settings" title="Admin" subtitle={`${profiles.length} usuarios · ${cotizaciones.length} cotizaciones`} />
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{ fontSize: 22, fontWeight: '800', color: COLORS.text }}>Admin</Text>
+          <Text style={{ fontSize: 12, color: COLORS.textMuted, marginTop: 2 }}>{profiles.length} usuarios · {cotizaciones.length} cotizaciones</Text>
+        </View>
 
         <Text style={s.section}>Usuarios ({profiles.length})</Text>
         {profiles.map((p: any) => (

@@ -58,6 +58,7 @@ export interface LineaResultado {
 export interface Cotizacion {
   id: string; fecha: string; cliente?: string; lineas: LineaResultado[];
   costoMinutoUSD: number; totalGeneralUSD: number; margen: number; tipoCambio: number;
+  fotoUrl?: string;
 }
 
 // --- Keys for local cache ---

@@ -10,8 +10,8 @@ import {
 } from '@/lib/storage';
 import { Moneda, getMonedaActiva, getCachedTipoCambio, fetchTipoCambio, formatFromUSD, toUSD } from '@/lib/currency';
 import { COLORS, RADIUS } from '@/lib/theme';
-import { Button, Card, Chip, PageHeader, Row, Divider } from '@/components/ui-kit';
-import { CurrencyBar } from '@/components/currency-bar';
+import { Button, SectionCard, Chip, Row, Divider } from '@/components/ui-kit';
+import { TopBar } from '@/components/top-bar';
 import { showToast } from '@/components/toast';
 
 const CANTIDADES_RAPIDAS = [50, 100, 200, 500];
@@ -26,7 +26,7 @@ export default function CotizarScreen() {
   const [margenDefault, setMargenDefault] = useState(40);
   const [selPrenda, setSelPrenda] = useState<string | null>(null);
   const [selTejido, setSelTejido] = useState<string | null>(null);
-  const [selPais, setSelPais] = useState<string>('local');
+  const [selPais, setSelPais] = useState<string>('');
   const [consumo, setConsumo] = useState('');
   const [cantidad, setCantidad] = useState('');
   const [cantFromChip, setCantFromChip] = useState(false);
@@ -41,20 +41,21 @@ export default function CotizarScreen() {
   const [moneda, setMoneda] = useState<Moneda>(getMonedaActiva());
   const [tc, setTc] = useState(getCachedTipoCambio());
 
-  useFocusEffect(
-    useCallback(() => {
-      (async () => {
-        const [p, t, ins, ps, cm, md] = await Promise.all([
-          getPrendas(), getTejidos(), getInsumos(), getPaises(), getCostoMinuto(), getMargenDefault(),
-        ]);
-        setPrendas(p); setTejidos(t); setInsumosList(ins); setPaises(ps);
-        setCostoMinuto(cm); setMargenDefault(md);
-        setMoneda(getMonedaActiva());
-        const rate = await fetchTipoCambio();
-        setTc(rate);
-      })();
-    }, []),
-  );
+  useFocusEffect(useCallback(() => {
+    (async () => {
+      const [p, t, ins, ps, cm, md] = await Promise.all([
+        getPrendas(), getTejidos(), getInsumos(), getPaises(), getCostoMinuto(), getMargenDefault(),
+      ]);
+      setPrendas(p); setTejidos(t); setInsumosList(ins); setPaises(ps); setCostoMinuto(cm); setMargenDefault(md);
+      if (ps.length > 0 && !selPais) {
+        const local = ps.find((x) => x.isLocal) || ps[0];
+        setSelPais(local.id);
+      }
+      setMoneda(getMonedaActiva());
+      const rate = await fetchTipoCambio();
+      setTc(rate);
+    })();
+  }, []));
 
   useEffect(() => {
     if (!selPrenda || !selTejido) { setConsumoAuto(false); return; }
@@ -69,14 +70,13 @@ export default function CotizarScreen() {
   const unidad = tejidoSel?.tipo === 'plano' ? 'm' : 'kg';
   const paisSel = paises.find((p) => p.id === selPais);
   const fmt = (usd: number) => formatFromUSD(usd, moneda, tc);
+  const insumosActivos = insumosList.filter((i) => selInsumos.has(i.id));
 
   const toggleInsumo = (id: string) => {
     const next = new Set(selInsumos);
     next.has(id) ? next.delete(id) : next.add(id);
     setSelInsumos(next);
   };
-
-  const insumosActivos = insumosList.filter((i) => selInsumos.has(i.id));
 
   const liveCalc = (() => {
     if (!selPrenda || !selTejido) return null;
@@ -92,14 +92,12 @@ export default function CotizarScreen() {
     const confUSD = p.minutos * costoMinuto;
     const insUSD = insumosActivos.reduce((s, i) => s + toUSD(i.precio, i.moneda, tc), 0);
     const costoUnitUSD = costoTejFinalUSD + confUSD + insUSD;
-    // Merma y logística sobre el costo
     const merma = mermaActiva ? parseNumero(mermaPct) || 0 : 0;
     const costoMermaUSD = costoUnitUSD * (merma / 100);
     const costoPostMerma = costoUnitUSD + costoMermaUSD;
     const logistica = logisticaActiva ? parseNumero(logisticaPct) || 0 : 0;
     const costoLogUSD = costoPostMerma * (logistica / 100);
     const costoRealUSD = costoPostMerma + costoLogUSD;
-    // Comisión va en el denominador del precio, no en el costo
     const comision = comisionActiva ? parseNumero(comisionPct) || 0 : 0;
     const subtUSD = costoRealUSD * q;
     const pvUSD = precioSugerido(costoRealUSD, margenDefault, comision);
@@ -126,20 +124,20 @@ export default function CotizarScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-      <CurrencyBar onUpdate={(m, r) => { setMoneda(m); setTc(r); }} />
+      <TopBar onUpdate={(m, r) => { setMoneda(m); setTc(r); }} />
       <ScrollView contentContainerStyle={styles.content}>
-        <PageHeader icon="calculate" title="Cotizar" subtitle="Selecciona, configura y calcula" />
-
-        <Card>
-          <Text style={styles.label}>Prenda</Text>
+        {/* Prenda */}
+        <SectionCard title="Prenda" subtitle={prendas.length === 0 ? 'Configura prendas en Config' : undefined}>
           <View style={styles.chipsRow}>
             {prendas.map((p) => (
               <Chip key={p.id} label={p.nombre} selected={selPrenda === p.id}
                 onPress={() => { setSelPrenda(p.id); setConsumo(''); }} />
             ))}
           </View>
+        </SectionCard>
 
-          <Text style={[styles.label, { marginTop: 12 }]}>Tejido <Text style={styles.hint}>(precio en USD)</Text></Text>
+        {/* Tejido */}
+        <SectionCard title="Tejido" subtitle="precio en USD">
           <View style={styles.chipsRow}>
             {tejidos.map((t) => (
               <Chip key={t.id} label={t.nombre} sublabel={`${t.tipo === 'punto' ? 'Punto' : 'Plano'} · $${t.precio}`}
@@ -147,15 +145,20 @@ export default function CotizarScreen() {
                 onPress={() => { setSelTejido(t.id); setConsumo(''); }} />
             ))}
           </View>
+        </SectionCard>
 
-          <Text style={[styles.label, { marginTop: 12 }]}>Origen del tejido</Text>
+        {/* Origen */}
+        <SectionCard title="Origen del tejido">
           <View style={styles.chipsRow}>
             {paises.map((p) => (
               <Chip key={p.id} label={p.nombre} sublabel={p.tasa > 0 ? `+${p.tasa}%` : undefined}
-                selected={selPais === p.id} onPress={() => setSelPais(p.id)} />
+                selected={selPais === p.id} variant="soft" onPress={() => setSelPais(p.id)} />
             ))}
           </View>
+        </SectionCard>
 
+        {/* Consumo + Cantidad */}
+        <SectionCard title="Consumo y cantidad">
           <View style={styles.inputsRow}>
             <View style={{ flex: 1 }}>
               <Text style={styles.label}>Consumo ({unidad}){consumoAuto && <Text style={styles.autoTag}> (memo)</Text>}</Text>
@@ -178,9 +181,10 @@ export default function CotizarScreen() {
                 onChangeText={(v) => { setCantidad(v); setCantFromChip(false); }} />
             </View>
           </View>
+        </SectionCard>
 
-          {/* Insumos checkboxes */}
-          <Text style={[styles.label, { marginTop: 12 }]}>Insumos</Text>
+        {/* Insumos */}
+        <SectionCard title="Insumos" subtitle={`${selInsumos.size} seleccionados`}>
           {insumosList.map((ins) => {
             const active = selInsumos.has(ins.id);
             return (
@@ -197,102 +201,92 @@ export default function CotizarScreen() {
               </TouchableOpacity>
             );
           })}
+        </SectionCard>
 
-          {/* Comisión toggle */}
-          <View style={styles.toggleRow}>
-            <MaterialIcons name="percent" size={16} color={comisionActiva ? '#7c3aed' : COLORS.textMuted} />
-            <Text style={[styles.toggleLabel, !comisionActiva && { color: COLORS.textMuted }]}>Comision</Text>
+        {/* Extras */}
+        <SectionCard title="Extras opcionales">
+          {/* Comision */}
+          <View style={styles.extraRow}>
+            <MaterialIcons name="percent" size={16} color={comisionActiva ? COLORS.purple : COLORS.textMuted} />
+            <Text style={[styles.extraLabel, !comisionActiva && { color: COLORS.textMuted }]}>Comision</Text>
+            {comisionActiva && (
+              <View style={styles.pctWrap}>
+                <TextInput style={styles.pctInput} keyboardType="decimal-pad"
+                  value={comisionPct} onChangeText={setComisionPct} />
+                <Text style={styles.pctSuffix}>%</Text>
+              </View>
+            )}
             <Switch value={comisionActiva} onValueChange={setComisionActiva}
-              trackColor={{ false: COLORS.border, true: '#ede9fe' }} thumbColor={comisionActiva ? '#7c3aed' : '#ccc'} />
+              trackColor={{ false: COLORS.border, true: COLORS.purpleSoft }} thumbColor={comisionActiva ? COLORS.purple : '#ccc'} />
           </View>
-          {comisionActiva && (
-            <View style={styles.mermaRow}>
-              <TextInput style={[styles.mermaInput, { borderColor: '#7c3aed', backgroundColor: '#f5f3ff' }]}
-                keyboardType="decimal-pad" value={comisionPct} onChangeText={setComisionPct}
-                placeholder="10" placeholderTextColor={COLORS.textMuted} />
-              <Text style={styles.mermaPct}>%</Text>
-            </View>
-          )}
 
-          {/* Merma toggle */}
-          <View style={styles.toggleRow}>
-            <MaterialIcons name="warning-amber" size={16} color={mermaActiva ? '#f59e0b' : COLORS.textMuted} />
-            <Text style={[styles.toggleLabel, !mermaActiva && { color: COLORS.textMuted }]}>Merma</Text>
+          {/* Merma */}
+          <View style={styles.extraRow}>
+            <MaterialIcons name="warning-amber" size={16} color={mermaActiva ? COLORS.warning : COLORS.textMuted} />
+            <Text style={[styles.extraLabel, !mermaActiva && { color: COLORS.textMuted }]}>Merma</Text>
+            {mermaActiva && (
+              <View style={styles.pctWrap}>
+                <TextInput style={styles.pctInput} keyboardType="decimal-pad"
+                  value={mermaPct} onChangeText={setMermaPct} />
+                <Text style={styles.pctSuffix}>%</Text>
+              </View>
+            )}
             <Switch value={mermaActiva} onValueChange={setMermaActiva}
-              trackColor={{ false: COLORS.border, true: '#fef3c7' }} thumbColor={mermaActiva ? '#f59e0b' : '#ccc'} />
+              trackColor={{ false: COLORS.border, true: COLORS.warningSoft }} thumbColor={mermaActiva ? COLORS.warning : '#ccc'} />
           </View>
-          {mermaActiva && (
-            <View style={styles.mermaRow}>
-              <TextInput style={styles.mermaInput} keyboardType="decimal-pad"
-                value={mermaPct} onChangeText={setMermaPct} placeholder="5" placeholderTextColor={COLORS.textMuted} />
-              <Text style={styles.mermaPct}>%</Text>
-            </View>
-          )}
 
-          {/* Logística toggle */}
-          <View style={styles.toggleRow}>
-            <MaterialIcons name="local-shipping" size={16} color={logisticaActiva ? '#0284c7' : COLORS.textMuted} />
-            <Text style={[styles.toggleLabel, !logisticaActiva && { color: COLORS.textMuted }]}>Logistica</Text>
+          {/* Logistica */}
+          <View style={styles.extraRow}>
+            <MaterialIcons name="local-shipping" size={16} color={logisticaActiva ? COLORS.primaryLight : COLORS.textMuted} />
+            <Text style={[styles.extraLabel, !logisticaActiva && { color: COLORS.textMuted }]}>Logistica</Text>
+            {logisticaActiva && (
+              <View style={styles.pctWrap}>
+                <TextInput style={styles.pctInput} keyboardType="decimal-pad"
+                  value={logisticaPct} onChangeText={setLogisticaPct} />
+                <Text style={styles.pctSuffix}>%</Text>
+              </View>
+            )}
             <Switch value={logisticaActiva} onValueChange={setLogisticaActiva}
-              trackColor={{ false: COLORS.border, true: '#bae6fd' }} thumbColor={logisticaActiva ? '#0284c7' : '#ccc'} />
+              trackColor={{ false: COLORS.border, true: COLORS.primaryGhost }} thumbColor={logisticaActiva ? COLORS.primaryLight : '#ccc'} />
           </View>
-          {logisticaActiva && (
-            <View style={styles.mermaRow}>
-              <TextInput style={[styles.mermaInput, { borderColor: '#0284c7', backgroundColor: '#f0f9ff' }]}
-                keyboardType="decimal-pad" value={logisticaPct} onChangeText={setLogisticaPct}
-                placeholder="3" placeholderTextColor={COLORS.textMuted} />
-              <Text style={styles.mermaPct}>%</Text>
-            </View>
-          )}
+        </SectionCard>
 
-          {/* Live result */}
-          {liveCalc && (
-            <View style={styles.liveResult}>
-              <Row icon="texture" label={liveCalc.tejNombre} value={fmt(liveCalc.costoTejidoUSD)} />
-              {liveCalc.tasa > 0 && <Row icon="public" label={`Importacion ${paisSel?.nombre} ${liveCalc.tasa}%`} value={fmt(liveCalc.costoImpUSD)} />}
-              <Row icon="precision-manufacturing" label="Confeccion" value={fmt(liveCalc.confUSD)} />
-              {liveCalc.insUSD > 0 && <Row icon="category" label={`Insumos (${insumosActivos.length})`} value={fmt(liveCalc.insUSD)} />}
-              <Divider />
-              <Row icon="functions" label="Costo unitario" value={fmt(liveCalc.costoUnitUSD)} bold />
-              {(liveCalc.merma > 0 || liveCalc.logistica > 0) && (
-                <>
-                  {liveCalc.merma > 0 && <Row icon="warning-amber" label={`Merma ${liveCalc.merma}%`} value={fmt(liveCalc.costoMermaUSD)} />}
-                  {liveCalc.logistica > 0 && <Row icon="local-shipping" label={`Logistica ${liveCalc.logistica}%`} value={fmt(liveCalc.costoLogUSD)} />}
-                  <Row icon="functions" label="Costo real" value={fmt(liveCalc.costoRealUSD)} bold />
-                </>
-              )}
-              <Divider />
-              <View style={styles.pvRow}>
-                <Text style={styles.pvLabel}>
-                  Precio de venta/u ({margenDefault}%{liveCalc.comision > 0 ? ` + Com. ${liveCalc.comision}%` : ''})
-                </Text>
-                <Text style={styles.pvValue}>{fmt(liveCalc.pvUSD)}</Text>
-              </View>
-              <View style={styles.totalRow}>
-                <Text style={styles.totalLabel}>TOTAL ({cantidad} u)</Text>
-                <Text style={styles.totalValue}>{fmt(liveCalc.pvTotalUSD)}</Text>
-              </View>
+        {/* Live preview */}
+        {liveCalc && (
+          <SectionCard title="Vista previa">
+            <Row icon="texture" label={liveCalc.tejNombre} value={fmt(liveCalc.costoTejidoUSD)} />
+            {liveCalc.tasa > 0 && <Row icon="public" label={`Importacion ${paisSel?.nombre} ${liveCalc.tasa}%`} value={fmt(liveCalc.costoImpUSD)} />}
+            <Row icon="precision-manufacturing" label="Confeccion" value={fmt(liveCalc.confUSD)} />
+            {liveCalc.insUSD > 0 && <Row icon="category" label={`Insumos (${insumosActivos.length})`} value={fmt(liveCalc.insUSD)} />}
+            <Divider />
+            <Row icon="functions" label="Costo unitario" value={fmt(liveCalc.costoUnitUSD)} bold />
+            {liveCalc.merma > 0 && <Row icon="warning-amber" label={`Merma ${liveCalc.merma}%`} value={fmt(liveCalc.costoMermaUSD)} />}
+            {liveCalc.logistica > 0 && <Row icon="local-shipping" label={`Logistica ${liveCalc.logistica}%`} value={fmt(liveCalc.costoLogUSD)} />}
+            {(liveCalc.merma > 0 || liveCalc.logistica > 0) && <Row icon="functions" label="Costo real" value={fmt(liveCalc.costoRealUSD)} bold />}
+            <Divider />
+            <View style={styles.pvRow}>
+              <Text style={styles.pvLabel}>Venta/u ({margenDefault}%{liveCalc.comision > 0 ? ` + ${liveCalc.comision}%` : ''})</Text>
+              <Text style={styles.pvValue}>{fmt(liveCalc.pvUSD)}</Text>
             </View>
-          )}
+          </SectionCard>
+        )}
 
-          <Button title="Calcular" icon="calculate" onPress={handleCalc} disabled={!liveCalc} style={{ marginTop: 14 }} />
-        </Card>
+        <Button title="Calcular" icon="calculate" onPress={handleCalc} disabled={!liveCalc} style={{ marginTop: 6 }} />
       </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 40 },
-  label: { fontSize: 13, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6, marginTop: 4 },
-  autoTag: { fontSize: 11, color: COLORS.success, fontWeight: '700' },
-  hint: { fontSize: 11, color: COLORS.textMuted, fontWeight: '400' },
+  content: { padding: 16, paddingBottom: 40 },
+  label: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary, marginBottom: 6 },
+  autoTag: { fontSize: 10, color: COLORS.success, fontWeight: '700' },
   chipsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  inputsRow: { flexDirection: 'row', gap: 12, marginTop: 10 },
-  input: { borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.sm, padding: 10, fontSize: 15, backgroundColor: COLORS.primaryGhost, color: COLORS.text },
+  inputsRow: { flexDirection: 'row', gap: 10 },
+  input: { borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.sm, padding: 10, fontSize: 15, backgroundColor: COLORS.bg, color: COLORS.text },
   inputAuto: { borderColor: COLORS.success, backgroundColor: COLORS.successSoft },
   cantRow: { flexDirection: 'row', gap: 4, marginBottom: 6 },
-  cantMini: { flex: 1, paddingVertical: 6, borderRadius: RADIUS.sm, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.bgWhite, alignItems: 'center' },
+  cantMini: { flex: 1, paddingVertical: 6, borderRadius: RADIUS.sm, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: '#fff', alignItems: 'center' },
   cantMiniSel: { borderColor: COLORS.primary, backgroundColor: COLORS.primary },
   cantMiniText: { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary },
   cantMiniTextSel: { color: '#fff' },
@@ -300,16 +294,12 @@ const styles = StyleSheet.create({
   insumoRowActive: { backgroundColor: COLORS.primaryGhost },
   insumoName: { flex: 1, fontSize: 13, color: COLORS.textMuted },
   insumoPrice: { fontSize: 12, fontWeight: '600', color: COLORS.textSecondary },
-  liveResult: { marginTop: 14, backgroundColor: '#f8fafc', borderRadius: RADIUS.md, padding: 12, borderWidth: 1, borderColor: COLORS.border },
-  pvRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  extraRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 8 },
+  extraLabel: { flex: 1, fontSize: 14, fontWeight: '500', color: COLORS.text },
+  pctWrap: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderColor: COLORS.border, borderRadius: RADIUS.sm, paddingHorizontal: 8, backgroundColor: COLORS.bg },
+  pctInput: { fontSize: 14, paddingVertical: 4, color: COLORS.text, minWidth: 32, textAlign: 'center' },
+  pctSuffix: { fontSize: 13, color: COLORS.textMuted, marginLeft: 2 },
+  pvRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: 4 },
   pvLabel: { fontSize: 13, fontWeight: '600', color: COLORS.success },
   pvValue: { fontSize: 22, fontWeight: '800', color: COLORS.success },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: COLORS.primary, borderRadius: RADIUS.sm, padding: 10, marginTop: 8 },
-  totalLabel: { fontSize: 13, fontWeight: '800', color: '#fff' },
-  totalValue: { fontSize: 17, fontWeight: '800', color: '#fff' },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, paddingVertical: 6 },
-  toggleLabel: { flex: 1, fontSize: 14, fontWeight: '500', color: COLORS.text },
-  mermaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-  mermaInput: { borderWidth: 1.5, borderColor: '#fbbf24', borderRadius: RADIUS.sm, padding: 8, fontSize: 15, backgroundColor: '#fefce8', color: COLORS.text, width: 70, textAlign: 'center' },
-  mermaPct: { fontSize: 15, color: COLORS.textMuted, fontWeight: '600' },
 });

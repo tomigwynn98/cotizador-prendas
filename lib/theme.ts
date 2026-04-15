@@ -1,67 +1,79 @@
-// Paleta de colores azul/blanco profesional
+// TexQuote / Texcin Group — Design System
 export const COLORS = {
-  // Primary blues
-  primary: '#1e40af',       // Azul principal
-  primaryLight: '#3b82f6',  // Azul claro
-  primaryDark: '#1e3a8a',   // Azul oscuro
-  primarySoft: '#dbeafe',   // Azul muy suave (fondo)
-  primaryGhost: '#eff6ff',  // Azul casi blanco
+  // Primary navy
+  primary: '#1E3A6E',
+  primaryLight: '#2B4F96',
+  primaryDark: '#17315B',
+  primarySoft: '#DBE3F3',
+  primaryGhost: '#EEF2FF',
 
   // Backgrounds
-  bg: '#f8fafc',            // Fondo general
-  bgWhite: '#ffffff',       // Cards
-  bgHeader: '#1e40af',      // Header azul
+  bg: '#F4F6FB',
+  bgWhite: '#FFFFFF',
+  bgHeader: '#1E3A6E',
 
   // Text
-  text: '#0f172a',          // Texto principal
-  textSecondary: '#475569', // Texto secundario
-  textMuted: '#94a3b8',     // Texto deshabilitado
-  textWhite: '#ffffff',     // Texto sobre azul
+  text: '#1A202C',
+  textSecondary: '#475569',
+  textMuted: '#64748B',
+  textWhite: '#FFFFFF',
 
   // Accents
-  success: '#10b981',       // Verde éxito
-  successSoft: '#d1fae5',
-  danger: '#ef4444',        // Rojo eliminar
-  dangerSoft: '#fee2e2',
-  warning: '#f59e0b',       // Amarillo
-  warningSoft: '#fef3c7',
+  success: '#16A34A',
+  successSoft: '#D1FAE5',
+  danger: '#EF4444',
+  dangerSoft: '#FEE2E2',
+  warning: '#F59E0B',
+  warningSoft: '#FEF3C7',
+  purple: '#7C3AED',
+  purpleSoft: '#EDE9FE',
 
   // Borders
-  border: '#e2e8f0',
-  borderFocus: '#3b82f6',
+  border: '#E2E8F0',
+  borderFocus: '#2B4F96',
 
   // Shadows
-  shadow: '#1e40af',
+  shadow: '#1E3A6E',
+
+  // WhatsApp
+  whatsapp: '#25D366',
 };
 
 export const SHADOWS = {
   small: {
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
     elevation: 2,
   },
   medium: {
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
   large: {
     shadowColor: COLORS.shadow,
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.12,
     shadowRadius: 12,
-    elevation: 6,
+    elevation: 5,
   },
 };
 
 export const RADIUS = {
   sm: 8,
-  md: 12,
+  md: 10,
+  card: 14,
   lg: 16,
   xl: 20,
   full: 999,
+};
+
+export const BRAND = {
+  name: 'TexQuote',
+  subtitle: 'Texcin Group · Private Label',
+  short: 'TXN',
 };

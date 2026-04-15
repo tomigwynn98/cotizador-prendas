@@ -18,8 +18,8 @@ import {
 import { seedDefaults } from '@/lib/supabase-storage';
 import type { Moneda } from '@/lib/currency';
 import { COLORS, RADIUS } from '@/lib/theme';
-import { Button, Card, Chip, SectionHeader, PageHeader } from '@/components/ui-kit';
-import { CurrencyBar } from '@/components/currency-bar';
+import { Button, Card, Chip, SectionHeader } from '@/components/ui-kit';
+import { TopBar } from '@/components/top-bar';
 import { showToast } from '@/components/toast';
 
 export default function ConfigScreen() {
@@ -118,12 +118,16 @@ export default function ConfigScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-      <CurrencyBar onUpdate={() => {}} />
+      <TopBar onUpdate={() => {}} />
       <ScrollView contentContainerStyle={s.content}>
-        <PageHeader icon="settings" title="Configuracion" subtitle="Parametros de tu fabrica" />
+        <View style={s.pageHeader}>
+          <Text style={s.pageTitle}>Configuracion</Text>
+          <Text style={s.pageSub}>Parametros de tu fabrica</Text>
+        </View>
 
         {/* Costo minuto USD */}
-        <SectionHeader icon="speed" title="Costo minuto (USD)" subtitle="Se guarda automaticamente" />
+        <SectionHeader icon="speed" title="Costo minuto (USD)" subtitle="Se guarda automaticamente"
+          iconBg={COLORS.primaryGhost} iconColor={COLORS.primary} />
         <Card>
           <View style={s.valRow}>
             <Text style={s.valPrefix}>US$</Text>
@@ -135,7 +139,8 @@ export default function ConfigScreen() {
         </Card>
 
         {/* Margen */}
-        <SectionHeader icon="trending-up" title="Margen default" subtitle="Se usa al cotizar" />
+        <SectionHeader icon="trending-up" title="Margen default" subtitle="Se usa al cotizar"
+          iconBg={COLORS.successSoft} iconColor={COLORS.success} />
         <Card>
           <View style={s.valRow}>
             <MaterialIcons name="percent" size={20} color={COLORS.primary} style={{ marginRight: 8 }} />
@@ -195,7 +200,7 @@ export default function ConfigScreen() {
         </View>}
 
         {/* Insumos */}
-        <CollHeader icon="category" iconBg={COLORS.successSoft} iconColor={COLORS.success}
+        <CollHeader icon="category" iconBg={COLORS.purpleSoft} iconColor={COLORS.purple}
           title="Insumos" count={`${insumos.length} items`} open={insumosOpen} toggle={() => setInsumosOpen(!insumosOpen)} />
         {insumosOpen && <View style={s.colContent}>
           {insumos.map((i) => editingInsumo === i.id ? (
@@ -220,7 +225,7 @@ export default function ConfigScreen() {
         </View>}
 
         {/* Importacion */}
-        <CollHeader icon="public" iconBg="#e0f2fe" iconColor="#0284c7"
+        <CollHeader icon="public" iconBg={COLORS.successSoft} iconColor={COLORS.success}
           title="Importacion" count={`${paises.length} paises`} open={paisesOpen} toggle={() => setPaisesOpen(!paisesOpen)} />
         {paisesOpen && <View style={s.colContent}>
           {paises.map((p) => editingPais === p.id ? (
@@ -229,7 +234,7 @@ export default function ConfigScreen() {
               <EditActions onCancel={() => setEditingPais(null)} onSave={savePs} canSave={!p.isLocal} /></EditCard>
           ) : (
             <Card key={p.id}><View style={s.itemRow}>
-              <View style={[s.itemIcon, { backgroundColor: '#e0f2fe' }]}><MaterialIcons name={p.isLocal ? 'home' : 'public'} size={18} color="#0284c7" /></View>
+              <View style={[s.itemIcon, { backgroundColor: COLORS.successSoft }]}><MaterialIcons name={p.isLocal ? 'home' : 'public'} size={18} color={COLORS.success} /></View>
               <View style={{ flex: 1 }}><Text style={s.itemName}>{p.nombre}</Text><Text style={s.itemDetail}>Tasa: {p.tasa}%{p.isLocal ? ' (fijo)' : ''}</Text></View>
               {!p.isLocal && <><TouchableOpacity style={s.editTag} onPress={() => { setEditingPais(p.id); setEpsData({ nombre: p.nombre, tasa: p.tasa.toString() }); }}><MaterialIcons name="edit" size={12} color={COLORS.primaryLight} /></TouchableOpacity>
               <TouchableOpacity onPress={() => delPs(p.id, p.nombre)} style={s.delBtn}><MaterialIcons name="close" size={14} color={COLORS.danger} /></TouchableOpacity></>}
@@ -278,7 +283,10 @@ export default function ConfigScreen() {
 }
 
 const s = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 60 },
+  content: { padding: 16, paddingBottom: 60 },
+  pageHeader: { marginBottom: 8 },
+  pageTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text },
+  pageSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   valRow: { flexDirection: 'row', alignItems: 'center' },
   valPrefix: { fontSize: 16, fontWeight: '600', color: COLORS.primary, marginRight: 6 },
   valInput: { flex: 1, fontSize: 22, fontWeight: '700', color: COLORS.text, paddingVertical: 4 },

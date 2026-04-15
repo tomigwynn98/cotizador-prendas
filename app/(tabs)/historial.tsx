@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Platform } from 'react-native';
+import { StyleSheet, ScrollView, View, Text, TouchableOpacity, Platform, Image, Modal } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
@@ -14,9 +14,10 @@ import {
   getCostoMinuto, getMargenDefault, precioSugerido, formatFecha,
 } from '@/lib/storage';
 import { Moneda, getMonedaActiva, getCachedTipoCambio, fetchTipoCambio, formatFromUSD } from '@/lib/currency';
+import { pickPhoto, uploadPhoto, updateCotizacionFoto } from '@/lib/photos';
 import { COLORS, RADIUS } from '@/lib/theme';
-import { Card, PageHeader, EmptyState } from '@/components/ui-kit';
-import { CurrencyBar } from '@/components/currency-bar';
+import { Card, EmptyState, Button, Tag } from '@/components/ui-kit';
+import { TopBar } from '@/components/top-bar';
 import { showToast } from '@/components/toast';
 
 export default function HistorialScreen() {
@@ -24,6 +25,7 @@ export default function HistorialScreen() {
   const [cotizaciones, setCotizaciones] = useState<Cotizacion[]>([]);
   const [moneda, setMoneda] = useState<Moneda>(getMonedaActiva());
   const [tc, setTc] = useState(getCachedTipoCambio());
+  const [photoModalFor, setPhotoModalFor] = useState<string | null>(null);
 
   useFocusEffect(useCallback(() => {
     (async () => {
@@ -63,91 +65,162 @@ export default function HistorialScreen() {
     });
   };
 
+  const handleChangePhoto = async (c: Cotizacion, source: 'camera' | 'library') => {
+    setPhotoModalFor(null);
+    try {
+      const asset = await pickPhoto(source);
+      if (!asset) return;
+      const url = await uploadPhoto(asset, c.id);
+      if (!url) return showToast('Error al subir', 'error');
+      await updateCotizacionFoto(c.id, url);
+      setCotizaciones((prev) => prev.map((x) => x.id === c.id ? { ...x, fotoUrl: url } : x));
+      showToast('Foto actualizada');
+    } catch { showToast('Error', 'error'); }
+  };
+
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
-      <CurrencyBar onUpdate={(m, r) => { setMoneda(m); setTc(r); }} />
+      <TopBar onUpdate={(m, r) => { setMoneda(m); setTc(r); }} />
       <ScrollView contentContainerStyle={styles.content}>
-        <PageHeader icon="history" title="Historial"
-          subtitle={cotizaciones.length > 0 ? `${cotizaciones.length} cotizaciones` : 'Tus cotizaciones'} />
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>Historial</Text>
+          <Text style={styles.headerSub}>{cotizaciones.length} cotizaciones</Text>
+        </View>
 
         {cotizaciones.length === 0 ? (
-          <EmptyState icon="history" title="Sin cotizaciones" subtitle="Se guardan al calcular" />
+          <EmptyState icon="history" title="Sin cotizaciones" subtitle="Se guardan desde la pantalla Resultado" />
         ) : cotizaciones.map((c) => {
           const l = c.lineas[0]; if (!l) return null;
-          const tieneImp = l.paisOrigen && !l.paisOrigen.isLocal;
           const pvUSD = precioSugerido(l.costoRealUSD, c.margen, l.comisionPct || 0);
-          const parts = [l.tejido.nombre];
-          if (tieneImp) parts.push(`${l.paisOrigen!.nombre} ${l.paisOrigen!.tasa}%`);
-          if (l.comisionPct > 0) parts.push(`Com. ${l.comisionPct}%`);
-          if (l.mermaPct > 0) parts.push(`Merma ${l.mermaPct}%`);
-          if (l.logisticaPct > 0) parts.push(`Log. ${l.logisticaPct}%`);
-          parts.push(`${l.cantidad} u`);
+          const tags: string[] = [];
+          if (l.paisOrigen && !l.paisOrigen.isLocal) tags.push(`${l.paisOrigen.nombre} ${l.paisOrigen.tasa}%`);
+          if (l.comisionPct > 0) tags.push(`Com. ${l.comisionPct}%`);
+          if (l.mermaPct > 0) tags.push(`Merma ${l.mermaPct}%`);
+          if (l.logisticaPct > 0) tags.push(`Log. ${l.logisticaPct}%`);
 
           return (
-            <Card key={c.id}>
-              <View style={styles.top}>
-                <View style={styles.dateRow}>
-                  <MaterialIcons name="schedule" size={14} color={COLORS.textMuted} />
-                  <Text style={styles.fecha}>{formatFecha(c.fecha)}</Text>
-                </View>
-                <TouchableOpacity onPress={() => handleEliminar(c.id)} style={{ padding: 6 }}>
-                  <MaterialIcons name="delete-outline" size={18} color={COLORS.danger} />
+            <Card key={c.id} style={{ padding: 0, overflow: 'hidden' }}>
+              {/* Top row with photo + info */}
+              <View style={styles.cardTop}>
+                <TouchableOpacity onPress={() => setPhotoModalFor(c.id)} activeOpacity={0.8}>
+                  {c.fotoUrl ? (
+                    <Image source={{ uri: c.fotoUrl }} style={styles.thumb} />
+                  ) : (
+                    <View style={styles.thumbPlaceholder}>
+                      <MaterialIcons name="checkroom" size={26} color={COLORS.primary} />
+                    </View>
+                  )}
                 </TouchableOpacity>
+
+                <View style={{ flex: 1, paddingHorizontal: 12 }}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.fecha}>{formatFecha(c.fecha)}</Text>
+                    <TouchableOpacity onPress={() => handleEliminar(c.id)} hitSlop={8}>
+                      <MaterialIcons name="delete-outline" size={18} color={COLORS.danger} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={styles.prenda}>{l.prenda.nombre}</Text>
+                  <Text style={styles.tejido}>{l.tejido.nombre} · {l.cantidad} u</Text>
+                  {c.cliente && (
+                    <View style={styles.clienteRow}>
+                      <MaterialIcons name="person" size={12} color={COLORS.primary} />
+                      <Text style={styles.clienteText}>{c.cliente}</Text>
+                    </View>
+                  )}
+                </View>
               </View>
-              {c.cliente && (
-                <View style={styles.clienteBadge}>
-                  <MaterialIcons name="person" size={14} color={COLORS.primaryLight} />
-                  <Text style={styles.clienteText}>{c.cliente}</Text>
+
+              {/* Tags */}
+              {tags.length > 0 && (
+                <View style={styles.tagsRow}>
+                  {tags.map((t, i) => <Tag key={i} label={t} />)}
                 </View>
               )}
-              <TouchableOpacity activeOpacity={0.7} onPress={() => handleVer(c)}>
-                <View style={styles.body}>
-                  <View style={styles.iconWrap}><MaterialIcons name="checkroom" size={22} color={COLORS.primary} /></View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.prenda}>{l.prenda.nombre}</Text>
-                    <Text style={styles.detail}>{parts.join(' · ')}</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.priceLabel}>Costo/u</Text>
-                    <Text style={styles.priceCosto}>{fmt(l.costoRealUSD)}</Text>
-                    <Text style={styles.priceLabel}>Venta/u</Text>
-                    <Text style={styles.priceVenta}>{fmt(pvUSD)}</Text>
-                  </View>
+
+              {/* Prices */}
+              <View style={styles.pricesRow}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.priceLabel}>Costo/u</Text>
+                  <Text style={styles.costoValue}>{fmt(l.costoRealUSD)}</Text>
                 </View>
-              </TouchableOpacity>
-              <View style={styles.actions}>
-                <TouchableOpacity style={styles.actBtn} onPress={() => handleVer(c)}>
-                  <MaterialIcons name="visibility" size={14} color={COLORS.primaryLight} />
-                  <Text style={styles.actText}>Ver</Text>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.priceLabel}>Venta/u</Text>
+                  <Text style={styles.ventaValue}>{fmt(pvUSD)}</Text>
+                </View>
+              </View>
+
+              {/* Actions */}
+              <View style={styles.actionsRow}>
+                <TouchableOpacity style={styles.verBtn} onPress={() => handleVer(c)}>
+                  <MaterialIcons name="visibility" size={15} color={COLORS.primary} />
+                  <Text style={styles.verText}>Ver desglose</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.actBtn, { backgroundColor: COLORS.primarySoft }]} onPress={() => handleRecotizar(c)}>
-                  <MaterialIcons name="refresh" size={14} color={COLORS.primary} />
-                  <Text style={[styles.actText, { color: COLORS.primary, fontWeight: '700' }]}>Recotizar</Text>
+                <TouchableOpacity style={styles.recotBtn} onPress={() => handleRecotizar(c)}>
+                  <MaterialIcons name="refresh" size={15} color="#fff" />
+                  <Text style={styles.recotText}>Recotizar</Text>
                 </TouchableOpacity>
               </View>
             </Card>
           );
         })}
       </ScrollView>
+
+      {/* Modal foto */}
+      <Modal visible={!!photoModalFor} transparent animationType="fade" onRequestClose={() => setPhotoModalFor(null)}>
+        <TouchableOpacity style={styles.modalBg} activeOpacity={1} onPress={() => setPhotoModalFor(null)}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Cambiar foto</Text>
+            <TouchableOpacity style={styles.modalOpt} onPress={() => {
+              const c = cotizaciones.find((x) => x.id === photoModalFor);
+              if (c) handleChangePhoto(c, 'camera');
+            }}>
+              <MaterialIcons name="photo-camera" size={22} color={COLORS.primary} />
+              <Text style={styles.modalOptText}>Tomar foto</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.modalOpt} onPress={() => {
+              const c = cotizaciones.find((x) => x.id === photoModalFor);
+              if (c) handleChangePhoto(c, 'library');
+            }}>
+              <MaterialIcons name="photo-library" size={22} color={COLORS.primary} />
+              <Text style={styles.modalOptText}>Elegir de galeria</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.modalOpt, { justifyContent: 'center' }]} onPress={() => setPhotoModalFor(null)}>
+              <Text style={{ color: COLORS.textMuted, fontSize: 14 }}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, paddingBottom: 40 },
-  top: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  fecha: { fontSize: 12, color: COLORS.textMuted },
-  clienteBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: COLORS.primaryGhost, borderRadius: RADIUS.sm, paddingHorizontal: 8, paddingVertical: 4, alignSelf: 'flex-start', marginBottom: 6 },
-  clienteText: { fontSize: 12, fontWeight: '600', color: COLORS.primary },
-  body: { flexDirection: 'row', alignItems: 'center' },
-  iconWrap: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.primaryGhost, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
-  prenda: { fontSize: 15, fontWeight: '600', color: COLORS.text },
-  detail: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  priceLabel: { fontSize: 10, color: COLORS.textMuted },
-  priceCosto: { fontSize: 13, fontWeight: '700', color: COLORS.text, marginBottom: 4 },
-  priceVenta: { fontSize: 16, fontWeight: '800', color: COLORS.success },
-  actions: { flexDirection: 'row', gap: 8, marginTop: 10, paddingTop: 10, borderTopWidth: 1, borderTopColor: COLORS.border },
-  actBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.sm, backgroundColor: COLORS.primaryGhost },
-  actText: { fontSize: 12, color: COLORS.primaryLight, fontWeight: '500' },
+  content: { padding: 16, paddingBottom: 40 },
+  header: { marginBottom: 14 },
+  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text },
+  headerSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
+  cardTop: { flexDirection: 'row', padding: 12, gap: 12 },
+  thumb: { width: 56, height: 56, borderRadius: 10, backgroundColor: COLORS.border },
+  thumbPlaceholder: { width: 56, height: 56, borderRadius: 10, backgroundColor: COLORS.primaryGhost, justifyContent: 'center', alignItems: 'center' },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 },
+  fecha: { fontSize: 11, color: COLORS.textMuted },
+  prenda: { fontSize: 15, fontWeight: '700', color: COLORS.text },
+  tejido: { fontSize: 12, color: COLORS.textSecondary, marginTop: 1 },
+  clienteRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 4, alignSelf: 'flex-start' },
+  clienteText: { fontSize: 11, fontWeight: '600', color: COLORS.primary },
+  tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, paddingHorizontal: 12, paddingBottom: 8 },
+  pricesRow: { flexDirection: 'row', paddingHorizontal: 12, paddingVertical: 10, borderTopWidth: 1, borderTopColor: COLORS.border },
+  priceLabel: { fontSize: 10, color: COLORS.textMuted, fontWeight: '600' },
+  costoValue: { fontSize: 13, fontWeight: '700', color: COLORS.textMuted, marginTop: 2 },
+  ventaValue: { fontSize: 18, fontWeight: '800', color: COLORS.success, marginTop: 2 },
+  actionsRow: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: COLORS.border },
+  verBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, padding: 12, borderRightWidth: 1, borderRightColor: COLORS.border },
+  verText: { fontSize: 13, fontWeight: '600', color: COLORS.primary },
+  recotBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, padding: 12, backgroundColor: COLORS.primary },
+  recotText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalCard: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 30 },
+  modalTitle: { fontSize: 16, fontWeight: '700', color: COLORS.text, textAlign: 'center', marginBottom: 16 },
+  modalOpt: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: RADIUS.md, backgroundColor: COLORS.bg, marginBottom: 8 },
+  modalOptText: { fontSize: 15, fontWeight: '600', color: COLORS.text },
 });
