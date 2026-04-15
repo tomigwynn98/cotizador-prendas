@@ -5,7 +5,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import {
   Prenda, Tejido, Insumo, PaisOrigen, getPrendas, getTejidos, getInsumos, getPaises,
-  getCostoMinuto, calcularCotizacion, setCotizacionActual, saveCotizacion,
+  getCostoMinuto, calcularCotizacion, setCotizacionActual,
   getConsumo, saveConsumo, getMargenDefault, precioSugerido, parseNumero,
 } from '@/lib/storage';
 import { Moneda, getMonedaActiva, getCachedTipoCambio, fetchTipoCambio, formatFromUSD, toUSD } from '@/lib/currency';
@@ -121,7 +121,6 @@ export default function CotizarScreen() {
     );
     if (!cot) return showToast('Error al calcular', 'error');
     await setCotizacionActual(cot);
-    await saveCotizacion(cot);
     router.navigate('/resultado');
   };
 

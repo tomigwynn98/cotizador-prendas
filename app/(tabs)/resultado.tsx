@@ -3,10 +3,10 @@ import { StyleSheet, ScrollView, View, Text, TextInput, TouchableOpacity, Linkin
 import { useFocusEffect } from 'expo-router';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
-import { Cotizacion, getCotizacionActual, precioSugerido, formatFecha, getMargenDefault } from '@/lib/storage';
+import { Cotizacion, getCotizacionActual, precioSugerido, formatFecha, getMargenDefault, saveCotizacion } from '@/lib/storage';
 import { Moneda, getMonedaActiva, getCachedTipoCambio, fetchTipoCambio, formatFromUSD, formatMoney, fromUSD } from '@/lib/currency';
 import { COLORS, RADIUS } from '@/lib/theme';
-import { Card, Chip, PageHeader, EmptyState, Row, Divider } from '@/components/ui-kit';
+import { Card, Chip, PageHeader, EmptyState, Row, Divider, Button } from '@/components/ui-kit';
 import { CurrencyBar } from '@/components/currency-bar';
 import { showToast } from '@/components/toast';
 
@@ -18,11 +18,12 @@ export default function ResultadoScreen() {
   const [cliente, setCliente] = useState('');
   const [moneda, setMoneda] = useState<Moneda>(getMonedaActiva());
   const [tc, setTc] = useState(getCachedTipoCambio());
+  const [guardado, setGuardado] = useState(false);
 
   useFocusEffect(useCallback(() => {
     (async () => {
       const [c, md, rate] = await Promise.all([getCotizacionActual(), getMargenDefault(), fetchTipoCambio()]);
-      if (c) { setCot(c); setCliente(c.cliente || ''); }
+      if (c) { setCot(c); setCliente(c.cliente || ''); setGuardado(false); }
       setMargen(md.toString()); setTc(rate); setMoneda(getMonedaActiva());
     })();
   }, []));
@@ -155,6 +156,24 @@ export default function ResultadoScreen() {
             <Text style={styles.totalValue}>{fmt(pvTotalUSD)}</Text>
           </View>
         </Card>
+
+        {/* Guardar en historial */}
+        {guardado ? (
+          <View style={styles.savedBox}>
+            <MaterialIcons name="check-circle" size={20} color={COLORS.success} />
+            <Text style={styles.savedText}>Guardado en historial</Text>
+          </View>
+        ) : (
+          <Button title="Guardar en historial" icon="save" variant="success" onPress={async () => {
+            if (!cot) return;
+            const toSave = { ...cot, cliente: cliente.trim() || undefined };
+            try {
+              await saveCotizacion(toSave);
+              setGuardado(true);
+              showToast('Guardado en historial');
+            } catch { showToast('Error al guardar', 'error'); }
+          }} />
+        )}
       </ScrollView>
     </View>
   );
@@ -182,4 +201,6 @@ const styles = StyleSheet.create({
   totalHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   totalLabel: { fontSize: 13, fontWeight: '800', color: '#fff' },
   totalValue: { fontSize: 20, fontWeight: '800', color: '#fff' },
+  savedBox: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 14, backgroundColor: COLORS.successSoft, borderRadius: RADIUS.md },
+  savedText: { fontSize: 15, fontWeight: '700', color: COLORS.success },
 });
