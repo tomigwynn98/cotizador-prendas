@@ -58,17 +58,18 @@ const nativeCSS = `
     -webkit-touch-callout: none;
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
+    margin: 0;
+    padding: 0;
+    background-color: #1E3A6E;
+  }
+
+  #root, body > div {
+    background-color: #F4F6FB;
   }
 
   /* Evitar zoom automatico en iOS cuando se hace focus en inputs (requiere font-size >= 16px) */
   input, textarea, select {
     font-size: 16px !important;
-  }
-
-  /* Status bar safe area padding */
-  body {
-    padding-top: env(safe-area-inset-top);
-    padding-bottom: env(safe-area-inset-bottom);
   }
 
   /* Ocultar scrollbar feo en web */

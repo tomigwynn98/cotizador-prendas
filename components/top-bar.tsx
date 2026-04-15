@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Platform } from 'react-native';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { COLORS, RADIUS, BRAND } from '@/lib/theme';
 import { Moneda, getMonedaActiva, setMonedaActiva, fetchTipoCambio, getCachedTipoCambio } from '@/lib/currency';
@@ -57,6 +57,8 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     paddingHorizontal: 16,
     paddingVertical: 10,
+    // Safe area para notch en iOS PWA
+    ...(Platform.OS === 'web' ? { paddingTop: 'max(10px, env(safe-area-inset-top))' as any } : { paddingTop: 10 }),
   },
   brandWrap: {
     flexDirection: 'row',
