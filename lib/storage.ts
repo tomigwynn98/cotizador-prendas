@@ -115,23 +115,11 @@ export async function saveTejidos(v: Tejido[]): Promise<void> {
   if (await isAuthenticated()) { try { const s = await supa(); await s.saveTejidos(v); } catch {} }
 }
 
-export async function getInsumos(): Promise<Insumo[]> {
-  if (await isAuthenticated()) { try { const s = await supa(); const d = await s.getInsumos(); local.set(K.INSUMOS, JSON.stringify(d)); return d; } catch {} }
-  return localGet(K.INSUMOS, DEF_INSUMOS);
-}
-export async function saveInsumos(v: Insumo[]): Promise<void> {
-  local.set(K.INSUMOS, JSON.stringify(v));
-  if (await isAuthenticated()) { try { const s = await supa(); await s.saveInsumos(v); } catch {} }
-}
-
-export async function getPaises(): Promise<PaisOrigen[]> {
-  if (await isAuthenticated()) { try { const s = await supa(); const d = await s.getPaises(); local.set(K.PAISES, JSON.stringify(d)); return d; } catch {} }
-  return localGet(K.PAISES, DEF_PAISES);
-}
-export async function savePaises(v: PaisOrigen[]): Promise<void> {
-  local.set(K.PAISES, JSON.stringify(v));
-  if (await isAuthenticated()) { try { const s = await supa(); await s.savePaises(v); } catch {} }
-}
+// Insumos y paises: siempre constantes fijas para todos los usuarios (uso interno)
+export async function getInsumos(): Promise<Insumo[]> { return DEF_INSUMOS; }
+export async function saveInsumos(_v: Insumo[]): Promise<void> { /* no-op: fijos */ }
+export async function getPaises(): Promise<PaisOrigen[]> { return DEF_PAISES; }
+export async function savePaises(_v: PaisOrigen[]): Promise<void> { /* no-op: fijos */ }
 
 export async function getCostoMinuto(): Promise<number> {
   if (await isAuthenticated()) { try { const s = await supa(); const d = await s.getCostoMinuto(); local.set(K.COSTO_MINUTO, JSON.stringify(d)); return d; } catch {} }

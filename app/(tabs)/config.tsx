@@ -199,52 +199,30 @@ export default function ConfigScreen() {
           </Card>
         </View>}
 
-        {/* Insumos */}
+        {/* Insumos - solo lectura */}
         <CollHeader icon="category" iconBg={COLORS.purpleSoft} iconColor={COLORS.purple}
-          title="Insumos" count={`${insumos.length} items`} open={insumosOpen} toggle={() => setInsumosOpen(!insumosOpen)} />
+          title="Insumos" count={`${insumos.length} fijos`} open={insumosOpen} toggle={() => setInsumosOpen(!insumosOpen)} />
         {insumosOpen && <View style={s.colContent}>
-          {insumos.map((i) => editingInsumo === i.id ? (
-            <EditCard key={i.id}><TextInput style={s.eInput} value={eiData.nombre} onChangeText={(v) => setEiData({ ...eiData, nombre: v })} placeholder="Nombre" placeholderTextColor={COLORS.textMuted} />
-              <View style={s.row}><Chip label="GS" selected={eiData.moneda === 'GS'} onPress={() => setEiData({ ...eiData, moneda: 'GS' })} /><Chip label="USD" selected={eiData.moneda === 'USD'} onPress={() => setEiData({ ...eiData, moneda: 'USD' })} /></View>
-              <TextInput style={s.eInput} value={eiData.precio} onChangeText={(v) => setEiData({ ...eiData, precio: v })} placeholder={`Precio ${eiData.moneda}`} placeholderTextColor={COLORS.textMuted} keyboardType="decimal-pad" />
-              <EditActions onCancel={() => setEditingInsumo(null)} onSave={saveI} /></EditCard>
-          ) : (
+          <Text style={s.readOnlyHint}>Fijos para todos los usuarios</Text>
+          {insumos.map((i) => (
             <Card key={i.id}><View style={s.itemRow}>
-              <View style={[s.itemIcon, { backgroundColor: COLORS.successSoft }]}><MaterialIcons name="label" size={18} color={COLORS.success} /></View>
+              <View style={[s.itemIcon, { backgroundColor: COLORS.purpleSoft }]}><MaterialIcons name="label" size={18} color={COLORS.purple} /></View>
               <View style={{ flex: 1 }}><Text style={s.itemName}>{i.nombre}</Text><Text style={s.itemDetail}>{i.moneda === 'USD' ? `US$ ${i.precio.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}` : `₲ ${i.precio.toLocaleString('es-AR')}`}</Text></View>
-              <TouchableOpacity style={s.editTag} onPress={() => { setEditingInsumo(i.id); setEiData({ nombre: i.nombre, precio: i.precio.toString(), moneda: i.moneda }); }}><MaterialIcons name="edit" size={12} color={COLORS.primaryLight} /></TouchableOpacity>
-              <TouchableOpacity onPress={() => delI(i.id, i.nombre)} style={s.delBtn}><MaterialIcons name="close" size={14} color={COLORS.danger} /></TouchableOpacity>
             </View></Card>
           ))}
-          <Card style={s.addCard}><Text style={s.addTitle}>Nuevo insumo</Text>
-            <TextInput style={s.aInput} placeholder="Nombre" placeholderTextColor={COLORS.textMuted} value={ni.nombre} onChangeText={(v) => setNi({ ...ni, nombre: v })} />
-            <View style={s.row}><Chip label="GS" selected={ni.moneda === 'GS'} onPress={() => setNi({ ...ni, moneda: 'GS' })} /><Chip label="USD" selected={ni.moneda === 'USD'} onPress={() => setNi({ ...ni, moneda: 'USD' })} /></View>
-            <TextInput style={s.aInput} placeholder={`Precio ${ni.moneda}`} placeholderTextColor={COLORS.textMuted} keyboardType="decimal-pad" value={ni.precio} onChangeText={(v) => setNi({ ...ni, precio: v })} />
-            <Button title="+ Agregar" icon="add" variant="success" onPress={addI} />
-          </Card>
         </View>}
 
-        {/* Importacion */}
+        {/* Importacion - solo lectura */}
         <CollHeader icon="public" iconBg={COLORS.successSoft} iconColor={COLORS.success}
           title="Importacion" count={`${paises.length} paises`} open={paisesOpen} toggle={() => setPaisesOpen(!paisesOpen)} />
         {paisesOpen && <View style={s.colContent}>
-          {paises.map((p) => editingPais === p.id ? (
-            <EditCard key={p.id}><TextInput style={s.eInput} value={epsData.nombre} onChangeText={(v) => setEpsData({ ...epsData, nombre: v })} placeholder="Pais" placeholderTextColor={COLORS.textMuted} editable={!p.isLocal} />
-              <TextInput style={s.eInput} value={epsData.tasa} onChangeText={(v) => setEpsData({ ...epsData, tasa: v })} placeholder="Tasa %" placeholderTextColor={COLORS.textMuted} keyboardType="decimal-pad" editable={!p.isLocal} />
-              <EditActions onCancel={() => setEditingPais(null)} onSave={savePs} canSave={!p.isLocal} /></EditCard>
-          ) : (
+          <Text style={s.readOnlyHint}>Fijos para todos los usuarios</Text>
+          {paises.map((p) => (
             <Card key={p.id}><View style={s.itemRow}>
               <View style={[s.itemIcon, { backgroundColor: COLORS.successSoft }]}><MaterialIcons name={p.isLocal ? 'home' : 'public'} size={18} color={COLORS.success} /></View>
-              <View style={{ flex: 1 }}><Text style={s.itemName}>{p.nombre}</Text><Text style={s.itemDetail}>Tasa: {p.tasa}%{p.isLocal ? ' (fijo)' : ''}</Text></View>
-              {!p.isLocal && <><TouchableOpacity style={s.editTag} onPress={() => { setEditingPais(p.id); setEpsData({ nombre: p.nombre, tasa: p.tasa.toString() }); }}><MaterialIcons name="edit" size={12} color={COLORS.primaryLight} /></TouchableOpacity>
-              <TouchableOpacity onPress={() => delPs(p.id, p.nombre)} style={s.delBtn}><MaterialIcons name="close" size={14} color={COLORS.danger} /></TouchableOpacity></>}
+              <View style={{ flex: 1 }}><Text style={s.itemName}>{p.nombre}</Text><Text style={s.itemDetail}>Tasa: {p.tasa}%</Text></View>
             </View></Card>
           ))}
-          <Card style={s.addCard}><Text style={s.addTitle}>Nuevo pais</Text>
-            <TextInput style={s.aInput} placeholder="Nombre del pais" placeholderTextColor={COLORS.textMuted} value={nps.nombre} onChangeText={(v) => setNps({ ...nps, nombre: v })} />
-            <TextInput style={s.aInput} placeholder="Tasa %" placeholderTextColor={COLORS.textMuted} keyboardType="decimal-pad" value={nps.tasa} onChangeText={(v) => setNps({ ...nps, tasa: v })} />
-            <Button title="+ Agregar" icon="add" variant="success" onPress={addPs} />
-          </Card>
         </View>}
 
         {/* Cuenta */}
@@ -254,14 +232,6 @@ export default function ConfigScreen() {
             <MaterialIcons name="email" size={18} color={COLORS.primaryLight} />
             <Text style={{ fontSize: 14, color: COLORS.text, flex: 1 }}>{user?.email}</Text>
           </View>
-          <Button title="Cargar insumos y paises default" icon="download" variant="secondary" onPress={async () => {
-            try {
-              await seedDefaults();
-              await reloadAll();
-              showToast('Valores por defecto cargados');
-            } catch { showToast('Error al cargar', 'error'); }
-          }} />
-          <View style={{ height: 8 }} />
           <Button title="Cerrar sesion" icon="logout" variant="danger" onPress={async () => {
             await signOut();
             router.replace('/login');
@@ -285,6 +255,7 @@ export default function ConfigScreen() {
 const s = StyleSheet.create({
   content: { padding: 16, paddingBottom: 60 },
   pageHeader: { marginBottom: 8 },
+  readOnlyHint: { fontSize: 11, color: COLORS.textMuted, fontStyle: 'italic', marginBottom: 6, paddingLeft: 4 },
   pageTitle: { fontSize: 22, fontWeight: '800', color: COLORS.text },
   pageSub: { fontSize: 12, color: COLORS.textMuted, marginTop: 2 },
   valRow: { flexDirection: 'row', alignItems: 'center' },
