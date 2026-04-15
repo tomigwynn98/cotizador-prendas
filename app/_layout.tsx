@@ -5,6 +5,8 @@ import 'react-native-reanimated';
 
 import { AuthProvider } from '@/contexts/auth-context';
 import { Toast } from '@/components/toast';
+import { IosInstallBanner } from '@/components/ios-install-banner';
+import { OfflineIndicator } from '@/components/offline-indicator';
 
 // Register service worker on web with auto-update
 if (Platform.OS === 'web' && typeof window !== 'undefined' && 'serviceWorker' in navigator) {
@@ -61,10 +63,12 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <View style={{ flex: 1 }}>
+        <OfflineIndicator />
         <Stack screenOptions={{ headerShown: false }}>
           <Stack.Screen name="login" />
           <Stack.Screen name="(tabs)" />
         </Stack>
+        <IosInstallBanner />
         <Toast />
       </View>
       <StatusBar style="auto" />
