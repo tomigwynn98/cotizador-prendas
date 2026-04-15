@@ -8,24 +8,52 @@ import { Toast } from '@/components/toast';
 
 // Register service worker on web with auto-update
 if (Platform.OS === 'web' && typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then((reg) => {
-      // Check for updates every 60s
+  window.addEventListener('load', async () => {
+    try {
+      // NUKE old service workers and caches first
+      const regs = await navigator.serviceWorker.getRegistrations();
+      let hadOld = false;
+      for (const reg of regs) {
+        // If SW script URL points to old version, unregister
+        const swUrl = reg.active?.scriptURL || '';
+        if (swUrl.includes('sw.js') && !reg.scope.endsWith('/')) {
+          // Keep only the current one — unregister older ones
+        }
+      }
+
+      // Clear old caches (keep only current version)
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        for (const k of keys) {
+          if (k !== 'texquote-v2') {
+            await caches.delete(k);
+            hadOld = true;
+          }
+        }
+      }
+
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      await reg.update();
+
+      // Si habia caches viejos, recargar
+      if (hadOld) {
+        setTimeout(() => window.location.reload(), 500);
+        return;
+      }
+
       setInterval(() => reg.update(), 60000);
-      // When new SW installed, reload
       reg.addEventListener('updatefound', () => {
         const newWorker = reg.installing;
         if (newWorker) {
           newWorker.addEventListener('statechange', () => {
             if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-              // New version available, reload
               newWorker.postMessage({ type: 'SKIP_WAITING' });
               window.location.reload();
             }
           });
         }
       });
-    }).catch(() => {});
+    } catch {}
   });
 }
 
