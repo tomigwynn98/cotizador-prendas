@@ -149,30 +149,34 @@ export async function getAllCotizaciones() {
 }
 
 // --- Seed defaults for new user ---
-export async function seedDefaults(): Promise<void> {
-  const userId = await uid();
+export async function seedDefaults(userIdParam?: string): Promise<void> {
+  const userId = userIdParam || await uid();
+  const short = userId.slice(0, 4);
 
-  await supabase.from('config').upsert({ user_id: userId, costo_minuto: 0.02, margen_default: 40 }, { onConflict: 'user_id' });
+  const { error: cfgErr } = await supabase.from('config').upsert({ user_id: userId, costo_minuto: 0.02, margen_default: 40 }, { onConflict: 'user_id' });
+  if (cfgErr) console.error('seed config error:', cfgErr);
 
   // Prendas y tejidos: vacios por defecto — el usuario carga los suyos
 
   const insumos = [
-    { id: `i_${userId.slice(0, 4)}_1`, user_id: userId, nombre: 'Hilos Recta', precio: 0.05, moneda: 'USD' },
-    { id: `i_${userId.slice(0, 4)}_2`, user_id: userId, nombre: 'Hilos Texturizado', precio: 0.04, moneda: 'USD' },
-    { id: `i_${userId.slice(0, 4)}_3`, user_id: userId, nombre: 'Poliamida', precio: 0.008, moneda: 'USD' },
-    { id: `i_${userId.slice(0, 4)}_4`, user_id: userId, nombre: 'Ribbon', precio: 0.004, moneda: 'USD' },
-    { id: `i_${userId.slice(0, 4)}_5`, user_id: userId, nombre: 'Gomas 6cm', precio: 0.13, moneda: 'USD' },
-    { id: `i_${userId.slice(0, 4)}_6`, user_id: userId, nombre: 'Gomas 7mm', precio: 0.013, moneda: 'USD' },
-    { id: `i_${userId.slice(0, 4)}_7`, user_id: userId, nombre: 'RFID', precio: 0.05, moneda: 'USD' },
-    { id: `i_${userId.slice(0, 4)}_8`, user_id: userId, nombre: 'Transfer', precio: 0.04, moneda: 'USD' },
-    { id: `i_${userId.slice(0, 4)}_9`, user_id: userId, nombre: 'Etiquetas Bordadas', precio: 0.05, moneda: 'USD' },
+    { id: `i_${short}_1`, user_id: userId, nombre: 'Hilos Recta', precio: 0.05, moneda: 'USD' },
+    { id: `i_${short}_2`, user_id: userId, nombre: 'Hilos Texturizado', precio: 0.04, moneda: 'USD' },
+    { id: `i_${short}_3`, user_id: userId, nombre: 'Poliamida', precio: 0.008, moneda: 'USD' },
+    { id: `i_${short}_4`, user_id: userId, nombre: 'Ribbon', precio: 0.004, moneda: 'USD' },
+    { id: `i_${short}_5`, user_id: userId, nombre: 'Gomas 6cm', precio: 0.13, moneda: 'USD' },
+    { id: `i_${short}_6`, user_id: userId, nombre: 'Gomas 7mm', precio: 0.013, moneda: 'USD' },
+    { id: `i_${short}_7`, user_id: userId, nombre: 'RFID', precio: 0.05, moneda: 'USD' },
+    { id: `i_${short}_8`, user_id: userId, nombre: 'Transfer', precio: 0.04, moneda: 'USD' },
+    { id: `i_${short}_9`, user_id: userId, nombre: 'Etiquetas Bordadas', precio: 0.05, moneda: 'USD' },
   ];
-  await supabase.from('insumos').insert(insumos);
+  const { error: insErr } = await supabase.from('insumos').insert(insumos);
+  if (insErr) console.error('seed insumos error:', insErr);
 
   const paises = [
-    { id: `ps_${userId.slice(0, 4)}_local`, user_id: userId, nombre: 'Local', tasa: 0, is_local: true },
-    { id: `ps_${userId.slice(0, 4)}_brasil`, user_id: userId, nombre: 'Brasil', tasa: 5, is_local: false },
-    { id: `ps_${userId.slice(0, 4)}_china`, user_id: userId, nombre: 'China', tasa: 15, is_local: false },
+    { id: `ps_${short}_local`, user_id: userId, nombre: 'Local', tasa: 0, is_local: true },
+    { id: `ps_${short}_brasil`, user_id: userId, nombre: 'Brasil', tasa: 5, is_local: false },
+    { id: `ps_${short}_china`, user_id: userId, nombre: 'China', tasa: 15, is_local: false },
   ];
-  await supabase.from('paises').insert(paises);
+  const { error: paisErr } = await supabase.from('paises').insert(paises);
+  if (paisErr) console.error('seed paises error:', paisErr);
 }

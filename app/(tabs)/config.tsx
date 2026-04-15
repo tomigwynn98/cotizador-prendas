@@ -15,6 +15,7 @@ import {
   getPaises, savePaises, getCostoMinuto, saveCostoMinuto, getMargenDefault, saveMargenDefault,
   generateId, parseNumero, exportarDatos, importarDatos,
 } from '@/lib/storage';
+import { seedDefaults } from '@/lib/supabase-storage';
 import type { Moneda } from '@/lib/currency';
 import { COLORS, RADIUS } from '@/lib/theme';
 import { Button, Card, Chip, SectionHeader, PageHeader } from '@/components/ui-kit';
@@ -248,6 +249,14 @@ export default function ConfigScreen() {
             <MaterialIcons name="email" size={18} color={COLORS.primaryLight} />
             <Text style={{ fontSize: 14, color: COLORS.text, flex: 1 }}>{user?.email}</Text>
           </View>
+          <Button title="Cargar insumos y paises default" icon="download" variant="secondary" onPress={async () => {
+            try {
+              await seedDefaults();
+              await reloadAll();
+              showToast('Valores por defecto cargados');
+            } catch { showToast('Error al cargar', 'error'); }
+          }} />
+          <View style={{ height: 8 }} />
           <Button title="Cerrar sesion" icon="logout" variant="danger" onPress={async () => {
             await signOut();
             router.replace('/login');

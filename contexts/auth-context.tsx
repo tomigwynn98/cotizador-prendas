@@ -69,10 +69,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data, error } = await supabase.auth.signUp({ email, password });
     if (error) return error.message;
     if (data.user) {
-      // Wait a moment for the trigger to create the profile
-      await new Promise((r) => setTimeout(r, 1000));
-      // Seed default data
-      try { await seedDefaults(); } catch (e) { console.warn('Seed error:', e); }
+      // Esperar que el trigger cree el profile y que la sesion se propague
+      await new Promise((r) => setTimeout(r, 1500));
+      // Seed default data pasando el userId explicitamente
+      try { await seedDefaults(data.user.id); } catch (e) { console.error('Seed error:', e); }
     }
     return null;
   };
