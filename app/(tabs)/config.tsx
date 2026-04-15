@@ -205,7 +205,7 @@ export default function ConfigScreen() {
           ) : (
             <Card key={i.id}><View style={s.itemRow}>
               <View style={[s.itemIcon, { backgroundColor: COLORS.successSoft }]}><MaterialIcons name="label" size={18} color={COLORS.success} /></View>
-              <View style={{ flex: 1 }}><Text style={s.itemName}>{i.nombre}</Text><Text style={s.itemDetail}>{i.moneda === 'USD' ? `US$ ${i.precio}` : `₲ ${i.precio.toLocaleString('es-AR')}`}</Text></View>
+              <View style={{ flex: 1 }}><Text style={s.itemName}>{i.nombre}</Text><Text style={s.itemDetail}>{i.moneda === 'USD' ? `US$ ${i.precio.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}` : `₲ ${i.precio.toLocaleString('es-AR')}`}</Text></View>
               <TouchableOpacity style={s.editTag} onPress={() => { setEditingInsumo(i.id); setEiData({ nombre: i.nombre, precio: i.precio.toString(), moneda: i.moneda }); }}><MaterialIcons name="edit" size={12} color={COLORS.primaryLight} /></TouchableOpacity>
               <TouchableOpacity onPress={() => delI(i.id, i.nombre)} style={s.delBtn}><MaterialIcons name="close" size={14} color={COLORS.danger} /></TouchableOpacity>
             </View></Card>

@@ -171,15 +171,15 @@ export async function seedDefaults(): Promise<void> {
   await supabase.from('tejidos').insert(tejidos);
 
   const insumos = [
-    { id: `i_${userId.slice(0, 4)}_1`, user_id: userId, nombre: 'Hilos recta (2000 yrd)', precio: 6778, moneda: 'GS' },
-    { id: `i_${userId.slice(0, 4)}_2`, user_id: userId, nombre: 'Hilos text (100 Gr)', precio: 11896, moneda: 'GS' },
-    { id: `i_${userId.slice(0, 4)}_3`, user_id: userId, nombre: 'Poliamida (200 mts.)', precio: 77000, moneda: 'GS' },
-    { id: `i_${userId.slice(0, 4)}_4`, user_id: userId, nombre: 'Ribbon (450 mts.)', precio: 65000, moneda: 'GS' },
-    { id: `i_${userId.slice(0, 4)}_5`, user_id: userId, nombre: 'Gomas 6 cm (25 mts.)', precio: 20250, moneda: 'GS' },
-    { id: `i_${userId.slice(0, 4)}_6`, user_id: userId, nombre: 'Gomas 7 mm (100 mts.)', precio: 22000, moneda: 'GS' },
-    { id: `i_${userId.slice(0, 4)}_7`, user_id: userId, nombre: 'Rfid', precio: 0.0516, moneda: 'USD' },
-    { id: `i_${userId.slice(0, 4)}_8`, user_id: userId, nombre: 'Transfer', precio: 284, moneda: 'GS' },
-    { id: `i_${userId.slice(0, 4)}_9`, user_id: userId, nombre: 'Etiquetas bordadas', precio: 300, moneda: 'GS' },
+    { id: `i_${userId.slice(0, 4)}_1`, user_id: userId, nombre: 'Hilos Recta', precio: 0.05, moneda: 'USD' },
+    { id: `i_${userId.slice(0, 4)}_2`, user_id: userId, nombre: 'Hilos Texturizado', precio: 0.04, moneda: 'USD' },
+    { id: `i_${userId.slice(0, 4)}_3`, user_id: userId, nombre: 'Poliamida', precio: 0.008, moneda: 'USD' },
+    { id: `i_${userId.slice(0, 4)}_4`, user_id: userId, nombre: 'Ribbon', precio: 0.004, moneda: 'USD' },
+    { id: `i_${userId.slice(0, 4)}_5`, user_id: userId, nombre: 'Gomas 6cm', precio: 0.13, moneda: 'USD' },
+    { id: `i_${userId.slice(0, 4)}_6`, user_id: userId, nombre: 'Gomas 7mm', precio: 0.013, moneda: 'USD' },
+    { id: `i_${userId.slice(0, 4)}_7`, user_id: userId, nombre: 'RFID', precio: 0.05, moneda: 'USD' },
+    { id: `i_${userId.slice(0, 4)}_8`, user_id: userId, nombre: 'Transfer', precio: 0.04, moneda: 'USD' },
+    { id: `i_${userId.slice(0, 4)}_9`, user_id: userId, nombre: 'Etiquetas Bordadas', precio: 0.05, moneda: 'USD' },
   ];
   await supabase.from('insumos').insert(insumos);
 

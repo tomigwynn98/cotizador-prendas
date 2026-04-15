@@ -191,7 +191,9 @@ export default function CotizarScreen() {
                   size={20} color={active ? COLORS.primary : COLORS.textMuted} />
                 <Text style={[styles.insumoName, active && { color: COLORS.text }]}>{ins.nombre}</Text>
                 <Text style={styles.insumoPrice}>
-                  {ins.moneda === 'USD' ? `US$ ${ins.precio}` : `₲ ${ins.precio.toLocaleString('es-AR')}`}
+                  {ins.moneda === 'USD'
+                    ? `US$ ${ins.precio.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 3 })}`
+                    : `₲ ${ins.precio.toLocaleString('es-AR')}`}
                 </Text>
               </TouchableOpacity>
             );

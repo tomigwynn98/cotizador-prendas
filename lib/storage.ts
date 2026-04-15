@@ -78,15 +78,15 @@ const DEF_TEJIDOS: Tejido[] = [
   { id: '3', nombre: 'Frisa', tipo: 'punto', precio: 0.90 }, { id: '4', nombre: 'Gabardina', tipo: 'plano', precio: 0.58 },
 ];
 const DEF_INSUMOS: Insumo[] = [
-  { id: 'i1', nombre: 'Hilos recta (2000 yrd)', precio: 6778, moneda: 'GS' },
-  { id: 'i2', nombre: 'Hilos text (100 Gr)', precio: 11896, moneda: 'GS' },
-  { id: 'i3', nombre: 'Poliamida (200 mts.)', precio: 77000, moneda: 'GS' },
-  { id: 'i4', nombre: 'Ribbon (450 mts.)', precio: 65000, moneda: 'GS' },
-  { id: 'i5', nombre: 'Gomas 6 cm (25 mts.)', precio: 20250, moneda: 'GS' },
-  { id: 'i6', nombre: 'Gomas 7 mm (100 mts.)', precio: 22000, moneda: 'GS' },
-  { id: 'i7', nombre: 'Rfid', precio: 0.0516, moneda: 'USD' },
-  { id: 'i8', nombre: 'Transfer', precio: 284, moneda: 'GS' },
-  { id: 'i9', nombre: 'Etiquetas bordadas', precio: 300, moneda: 'GS' },
+  { id: 'i1', nombre: 'Hilos Recta', precio: 0.05, moneda: 'USD' },
+  { id: 'i2', nombre: 'Hilos Texturizado', precio: 0.04, moneda: 'USD' },
+  { id: 'i3', nombre: 'Poliamida', precio: 0.008, moneda: 'USD' },
+  { id: 'i4', nombre: 'Ribbon', precio: 0.004, moneda: 'USD' },
+  { id: 'i5', nombre: 'Gomas 6cm', precio: 0.13, moneda: 'USD' },
+  { id: 'i6', nombre: 'Gomas 7mm', precio: 0.013, moneda: 'USD' },
+  { id: 'i7', nombre: 'RFID', precio: 0.05, moneda: 'USD' },
+  { id: 'i8', nombre: 'Transfer', precio: 0.04, moneda: 'USD' },
+  { id: 'i9', nombre: 'Etiquetas Bordadas', precio: 0.05, moneda: 'USD' },
 ];
 const DEF_PAISES: PaisOrigen[] = [
   { id: 'local', nombre: 'Local', tasa: 0, isLocal: true },

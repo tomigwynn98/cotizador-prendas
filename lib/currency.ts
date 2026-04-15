@@ -84,7 +84,10 @@ export function fromUSD(amount: number, to: Moneda, tc: number): number {
 
 export function formatMoney(amount: number, moneda: Moneda): string {
   if (moneda === 'USD') {
-    return 'US$ ' + amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Hasta 3 decimales: muestra 2 o 3 según necesidad
+    const abs = Math.abs(amount);
+    const decimals = abs > 0 && abs < 0.01 ? 3 : (abs > 0 && abs < 1 ? 3 : 2);
+    return 'US$ ' + amount.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: decimals });
   }
   // GS: sin decimales
   return '₲ ' + Math.round(amount).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
