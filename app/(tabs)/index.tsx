@@ -109,17 +109,23 @@ export default function CotizarScreen() {
     const c = parseNumero(consumo), q = parseInt(cantidad, 10);
     if (!c || c <= 0) return showToast('Consumo invalido', 'error');
     if (!q || q <= 0) return showToast('Cantidad invalida', 'error');
-    await saveConsumo(selPrenda, selTejido, c);
-    const cot = calcularCotizacion(
-      [{ prendaId: selPrenda, tejidoId: selTejido, consumo: c, cantidad: q }],
-      prendas, tejidos, costoMinuto, margenDefault, tc, undefined, paisSel, insumosActivos,
-      comisionActiva ? parseNumero(comisionPct) || 0 : 0,
-      mermaActiva ? parseNumero(mermaPct) || 0 : 0,
-      logisticaActiva ? parseNumero(logisticaPct) || 0 : 0,
-    );
-    if (!cot) return showToast('Error al calcular', 'error');
-    await setCotizacionActual(cot);
-    router.navigate('/resultado');
+    try {
+      const cot = calcularCotizacion(
+        [{ prendaId: selPrenda, tejidoId: selTejido, consumo: c, cantidad: q }],
+        prendas, tejidos, costoMinuto, margenDefault, tc, undefined, paisSel, insumosActivos,
+        comisionActiva ? parseNumero(comisionPct) || 0 : 0,
+        mermaActiva ? parseNumero(mermaPct) || 0 : 0,
+        logisticaActiva ? parseNumero(logisticaPct) || 0 : 0,
+      );
+      if (!cot) return showToast('Error al calcular', 'error');
+      await setCotizacionActual(cot);
+      // saveConsumo en background, no bloquea la navegacion
+      saveConsumo(selPrenda, selTejido, c).catch((e) => console.error('saveConsumo error:', e));
+      router.navigate('/resultado');
+    } catch (e) {
+      console.error('handleCalc error:', e);
+      showToast('Error al calcular', 'error');
+    }
   };
 
   return (

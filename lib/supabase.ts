@@ -41,7 +41,9 @@ export async function getUser() {
 export async function getUserProfile() {
   const user = await getUser();
   if (!user) return null;
-  const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', user.id).maybeSingle();
+  if (error) console.error('getUserProfile error:', error);
+  console.log('getUserProfile result:', data);
   return data as { id: string; email: string; role: 'admin' | 'user'; team_id?: string | null } | null;
 }
 
