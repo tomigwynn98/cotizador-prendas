@@ -46,17 +46,21 @@ export async function getPrendas(): Promise<Prenda[]> {
 
 export async function savePrendas(prendas: Prenda[]): Promise<void> {
   const { teamId, userId } = await scope();
+  let delErr;
   if (teamId) {
-    // Al guardar en equipo, tambien limpiar datos personales del user para no duplicar
-    await supabase.from('prendas').delete().eq('team_id', teamId);
-    await supabase.from('prendas').delete().eq('user_id', userId).is('team_id', null);
+    const r1 = await supabase.from('prendas').delete().eq('team_id', teamId);
+    const r2 = await supabase.from('prendas').delete().eq('user_id', userId).is('team_id', null);
+    delErr = r1.error || r2.error;
   } else {
-    await supabase.from('prendas').delete().eq('user_id', userId).is('team_id', null);
+    const r = await supabase.from('prendas').delete().eq('user_id', userId).is('team_id', null);
+    delErr = r.error;
   }
+  if (delErr) console.error('savePrendas delete error:', delErr);
   if (prendas.length > 0) {
-    await supabase.from('prendas').insert(prendas.map((p) => ({
+    const { error } = await supabase.from('prendas').insert(prendas.map((p) => ({
       id: p.id, user_id: userId, team_id: teamId, nombre: p.nombre, minutos: p.minutos,
     })));
+    if (error) console.error('savePrendas insert error:', error);
   }
 }
 
@@ -75,9 +79,10 @@ export async function saveTejidos(tejidos: Tejido[]): Promise<void> {
     await supabase.from('tejidos').delete().eq('user_id', userId).is('team_id', null);
   }
   if (tejidos.length > 0) {
-    await supabase.from('tejidos').insert(tejidos.map((t) => ({
+    const { error } = await supabase.from('tejidos').insert(tejidos.map((t) => ({
       id: t.id, user_id: userId, team_id: teamId, nombre: t.nombre, tipo: t.tipo, precio_usd: t.precio,
     })));
+    if (error) console.error('saveTejidos insert error:', error);
   }
 }
 

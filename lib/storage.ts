@@ -98,21 +98,44 @@ function localGet<T>(key: string, def: T): T {
 // --- CRUD (auth-aware: Supabase if logged in, else local) ---
 
 export async function getPrendas(): Promise<Prenda[]> {
-  if (await isAuthenticated()) { try { const s = await supa(); const d = await s.getPrendas(); local.set(K.PRENDAS, JSON.stringify(d)); return d; } catch {} }
-  return localGet(K.PRENDAS, DEF_PRENDAS);
+  const localData = localGet<Prenda[]>(K.PRENDAS, DEF_PRENDAS);
+  if (await isAuthenticated()) {
+    try {
+      const s = await supa(); const d = await s.getPrendas();
+      if (d.length > 0) { local.set(K.PRENDAS, JSON.stringify(d)); return d; }
+      // Si Supabase devuelve vacio pero local tiene datos, usar local (puede haber race condition)
+      if (localData.length > 0) return localData;
+      return d;
+    } catch (e) { console.error('getPrendas error:', e); }
+  }
+  return localData;
 }
 export async function savePrendas(v: Prenda[]): Promise<void> {
   local.set(K.PRENDAS, JSON.stringify(v));
-  if (await isAuthenticated()) { try { const s = await supa(); await s.savePrendas(v); } catch {} }
+  if (await isAuthenticated()) {
+    try { const s = await supa(); await s.savePrendas(v); }
+    catch (e) { console.error('savePrendas error:', e); }
+  }
 }
 
 export async function getTejidos(): Promise<Tejido[]> {
-  if (await isAuthenticated()) { try { const s = await supa(); const d = await s.getTejidos(); local.set(K.TEJIDOS, JSON.stringify(d)); return d; } catch {} }
-  return localGet(K.TEJIDOS, DEF_TEJIDOS);
+  const localData = localGet<Tejido[]>(K.TEJIDOS, DEF_TEJIDOS);
+  if (await isAuthenticated()) {
+    try {
+      const s = await supa(); const d = await s.getTejidos();
+      if (d.length > 0) { local.set(K.TEJIDOS, JSON.stringify(d)); return d; }
+      if (localData.length > 0) return localData;
+      return d;
+    } catch (e) { console.error('getTejidos error:', e); }
+  }
+  return localData;
 }
 export async function saveTejidos(v: Tejido[]): Promise<void> {
   local.set(K.TEJIDOS, JSON.stringify(v));
-  if (await isAuthenticated()) { try { const s = await supa(); await s.saveTejidos(v); } catch {} }
+  if (await isAuthenticated()) {
+    try { const s = await supa(); await s.saveTejidos(v); }
+    catch (e) { console.error('saveTejidos error:', e); }
+  }
 }
 
 // Insumos y paises: siempre constantes fijas para todos los usuarios (uso interno)
