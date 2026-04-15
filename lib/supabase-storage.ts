@@ -154,21 +154,7 @@ export async function seedDefaults(): Promise<void> {
 
   await supabase.from('config').upsert({ user_id: userId, costo_minuto: 0.02, margen_default: 40 }, { onConflict: 'user_id' });
 
-  const prendas = [
-    { id: `p_${userId.slice(0, 4)}_1`, user_id: userId, nombre: 'Remera', minutos: 12 },
-    { id: `p_${userId.slice(0, 4)}_2`, user_id: userId, nombre: 'Pantalón', minutos: 25 },
-    { id: `p_${userId.slice(0, 4)}_3`, user_id: userId, nombre: 'Buzo', minutos: 20 },
-    { id: `p_${userId.slice(0, 4)}_4`, user_id: userId, nombre: 'Campera', minutos: 35 },
-  ];
-  await supabase.from('prendas').insert(prendas);
-
-  const tejidos = [
-    { id: `t_${userId.slice(0, 4)}_1`, user_id: userId, nombre: 'Jersey', tipo: 'punto', precio_usd: 0.70 },
-    { id: `t_${userId.slice(0, 4)}_2`, user_id: userId, nombre: 'Interlock', tipo: 'punto', precio_usd: 0.80 },
-    { id: `t_${userId.slice(0, 4)}_3`, user_id: userId, nombre: 'Frisa', tipo: 'punto', precio_usd: 0.90 },
-    { id: `t_${userId.slice(0, 4)}_4`, user_id: userId, nombre: 'Gabardina', tipo: 'plano', precio_usd: 0.58 },
-  ];
-  await supabase.from('tejidos').insert(tejidos);
+  // Prendas y tejidos: vacios por defecto — el usuario carga los suyos
 
   const insumos = [
     { id: `i_${userId.slice(0, 4)}_1`, user_id: userId, nombre: 'Hilos Recta', precio: 0.05, moneda: 'USD' },

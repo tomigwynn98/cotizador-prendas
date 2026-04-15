@@ -69,14 +69,8 @@ const K = {
 
 // --- Defaults ---
 const DEF_CM = 0.02;
-const DEF_PRENDAS: Prenda[] = [
-  { id: '1', nombre: 'Remera', minutos: 12 }, { id: '2', nombre: 'Pantalón', minutos: 25 },
-  { id: '3', nombre: 'Buzo', minutos: 20 }, { id: '4', nombre: 'Campera', minutos: 35 },
-];
-const DEF_TEJIDOS: Tejido[] = [
-  { id: '1', nombre: 'Jersey', tipo: 'punto', precio: 0.70 }, { id: '2', nombre: 'Interlock', tipo: 'punto', precio: 0.80 },
-  { id: '3', nombre: 'Frisa', tipo: 'punto', precio: 0.90 }, { id: '4', nombre: 'Gabardina', tipo: 'plano', precio: 0.58 },
-];
+const DEF_PRENDAS: Prenda[] = [];
+const DEF_TEJIDOS: Tejido[] = [];
 const DEF_INSUMOS: Insumo[] = [
   { id: 'i1', nombre: 'Hilos Recta', precio: 0.05, moneda: 'USD' },
   { id: 'i2', nombre: 'Hilos Texturizado', precio: 0.04, moneda: 'USD' },
