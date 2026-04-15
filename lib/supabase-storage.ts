@@ -276,33 +276,47 @@ export async function setUserTeam(userId: string, teamId: string | null) {
 // --- Seed defaults for new user ---
 export async function seedDefaults(userIdParam?: string): Promise<void> {
   const userId = userIdParam || await uid();
-  const short = userId.slice(0, 4);
   const teamId = await getTeamId();
+  const rand = () => Math.random().toString(36).slice(2, 8);
 
-  const { error: cfgErr } = await supabase.from('config').upsert(
-    { user_id: userId, team_id: teamId, costo_minuto: 0.02, margen_default: 40 },
-    { onConflict: teamId ? 'team_id' : 'user_id' }
-  );
-  if (cfgErr) console.error('seed config error:', cfgErr);
+  // LIMPIAR insumos y paises existentes del user/team (ambos)
+  await supabase.from('insumos').delete().eq('user_id', userId);
+  if (teamId) await supabase.from('insumos').delete().eq('team_id', teamId);
+  await supabase.from('paises').delete().eq('user_id', userId);
+  if (teamId) await supabase.from('paises').delete().eq('team_id', teamId);
+
+  // Config - upsert manual
+  const { data: existingCfg } = teamId
+    ? await supabase.from('config').select('id').eq('team_id', teamId).maybeSingle()
+    : await supabase.from('config').select('id').eq('user_id', userId).is('team_id', null).maybeSingle();
+
+  if (existingCfg) {
+    await supabase.from('config').update({ costo_minuto: 0.02, margen_default: 40 }).eq('id', existingCfg.id);
+  } else {
+    const { error: cfgErr } = await supabase.from('config').insert({
+      user_id: userId, team_id: teamId, costo_minuto: 0.02, margen_default: 40,
+    });
+    if (cfgErr) console.error('seed config error:', cfgErr);
+  }
 
   const insumos = [
-    { id: `i_${short}_1`, user_id: userId, team_id: teamId, nombre: 'Hilos Recta', precio: 0.05, moneda: 'USD' },
-    { id: `i_${short}_2`, user_id: userId, team_id: teamId, nombre: 'Hilos Texturizado', precio: 0.04, moneda: 'USD' },
-    { id: `i_${short}_3`, user_id: userId, team_id: teamId, nombre: 'Poliamida', precio: 0.008, moneda: 'USD' },
-    { id: `i_${short}_4`, user_id: userId, team_id: teamId, nombre: 'Ribbon', precio: 0.004, moneda: 'USD' },
-    { id: `i_${short}_5`, user_id: userId, team_id: teamId, nombre: 'Gomas 6cm', precio: 0.13, moneda: 'USD' },
-    { id: `i_${short}_6`, user_id: userId, team_id: teamId, nombre: 'Gomas 7mm', precio: 0.013, moneda: 'USD' },
-    { id: `i_${short}_7`, user_id: userId, team_id: teamId, nombre: 'RFID', precio: 0.05, moneda: 'USD' },
-    { id: `i_${short}_8`, user_id: userId, team_id: teamId, nombre: 'Transfer', precio: 0.04, moneda: 'USD' },
-    { id: `i_${short}_9`, user_id: userId, team_id: teamId, nombre: 'Etiquetas Bordadas', precio: 0.05, moneda: 'USD' },
+    { id: `i_${rand()}`, user_id: userId, team_id: teamId, nombre: 'Hilos Recta', precio: 0.05, moneda: 'USD' },
+    { id: `i_${rand()}`, user_id: userId, team_id: teamId, nombre: 'Hilos Texturizado', precio: 0.04, moneda: 'USD' },
+    { id: `i_${rand()}`, user_id: userId, team_id: teamId, nombre: 'Poliamida', precio: 0.008, moneda: 'USD' },
+    { id: `i_${rand()}`, user_id: userId, team_id: teamId, nombre: 'Ribbon', precio: 0.004, moneda: 'USD' },
+    { id: `i_${rand()}`, user_id: userId, team_id: teamId, nombre: 'Gomas 6cm', precio: 0.13, moneda: 'USD' },
+    { id: `i_${rand()}`, user_id: userId, team_id: teamId, nombre: 'Gomas 7mm', precio: 0.013, moneda: 'USD' },
+    { id: `i_${rand()}`, user_id: userId, team_id: teamId, nombre: 'RFID', precio: 0.05, moneda: 'USD' },
+    { id: `i_${rand()}`, user_id: userId, team_id: teamId, nombre: 'Transfer', precio: 0.04, moneda: 'USD' },
+    { id: `i_${rand()}`, user_id: userId, team_id: teamId, nombre: 'Etiquetas Bordadas', precio: 0.05, moneda: 'USD' },
   ];
   const { error: insErr } = await supabase.from('insumos').insert(insumos);
   if (insErr) console.error('seed insumos error:', insErr);
 
   const paises = [
-    { id: `ps_${short}_local`, user_id: userId, team_id: teamId, nombre: 'Local', tasa: 0, is_local: true },
-    { id: `ps_${short}_brasil`, user_id: userId, team_id: teamId, nombre: 'Brasil', tasa: 5, is_local: false },
-    { id: `ps_${short}_china`, user_id: userId, team_id: teamId, nombre: 'China', tasa: 15, is_local: false },
+    { id: `ps_${rand()}`, user_id: userId, team_id: teamId, nombre: 'Local', tasa: 0, is_local: true },
+    { id: `ps_${rand()}`, user_id: userId, team_id: teamId, nombre: 'Brasil', tasa: 5, is_local: false },
+    { id: `ps_${rand()}`, user_id: userId, team_id: teamId, nombre: 'China', tasa: 15, is_local: false },
   ];
   const { error: paisErr } = await supabase.from('paises').insert(paises);
   if (paisErr) console.error('seed paises error:', paisErr);
