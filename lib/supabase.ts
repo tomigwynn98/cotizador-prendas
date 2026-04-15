@@ -42,7 +42,7 @@ export async function getUserProfile() {
   const user = await getUser();
   if (!user) return null;
   const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single();
-  return data as { id: string; email: string; role: 'admin' | 'user' } | null;
+  return data as { id: string; email: string; role: 'admin' | 'user'; team_id?: string | null } | null;
 }
 
 export async function isAdmin(): Promise<boolean> {

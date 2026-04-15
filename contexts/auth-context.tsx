@@ -7,6 +7,7 @@ interface Profile {
   id: string;
   email: string;
   role: 'admin' | 'user';
+  team_id?: string | null;
 }
 
 interface AuthContextType {
